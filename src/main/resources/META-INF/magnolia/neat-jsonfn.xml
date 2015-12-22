@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE module SYSTEM "module.dtd" >
+<module>
+  <name>neat-jsonfn</name>
+  <displayName>${project.name}</displayName>
+  <description>${project.description}</description>
+  <class>com.neatresults.mgnltweaks.NeatJsonfnModule</class>
+  <versionHandler>com.neatresults.mgnltweaks.setup.NeatJsonfnModuleVersionHandler</versionHandler>
+  <version>${project.version}</version>
+
+  <dependencies>
+    <dependency>
+      <name>core</name>
+      <version>5.4.3/*</version>
+    </dependency>
+    <!--  Add other dependencies here, e.g the mte (magnolia templating essentials).
+    <dependency>
+      <name>mte</name>
+      <version>0.7/*</version>
+    </dependency>
+    -->
+  </dependencies>
+</module>

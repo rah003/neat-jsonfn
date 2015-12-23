@@ -62,7 +62,7 @@ import info.magnolia.jcr.util.ContentMap;
 import info.magnolia.jcr.util.PropertyUtil;
 
 /**
- * Builder class for convering JCR nodes into json ... with few little extras :D .
+ * Builder class for converting JCR nodes into json ... with few little extras :D .
  */
 public class JsonBuilder implements Cloneable {
 

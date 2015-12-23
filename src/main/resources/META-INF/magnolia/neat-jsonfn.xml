@@ -7,11 +7,19 @@
   <class>com.neatresults.mgnltweaks.NeatJsonfnModule</class>
   <versionHandler>com.neatresults.mgnltweaks.setup.NeatJsonfnModuleVersionHandler</versionHandler>
   <version>${project.version}</version>
+  <components>
+    <id>main</id>
+    <component>
+      <type>com.neatresults.mgnltweaks.JsonTemplatingFunctions</type>
+      <implementation>com.neatresults.mgnltweaks.JsonTemplatingFunctions</implementation>
+      <scope>singleton</scope>
+    </component>
+  </components>
 
   <dependencies>
     <dependency>
       <name>core</name>
-      <version>5.4.3/*</version>
+      <version>5.0/*</version>
     </dependency>
     <!--  Add other dependencies here, e.g the mte (magnolia templating essentials).
     <dependency>

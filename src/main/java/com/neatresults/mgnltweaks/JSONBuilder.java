@@ -53,10 +53,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.neatresults.PredicateSplitterConsumer;
 
 import info.magnolia.context.MgnlContext;
@@ -66,13 +64,12 @@ import info.magnolia.jcr.util.PropertyUtil;
 /**
  * Builder class for convering JCR nodes into json ... with few little extras :D .
  */
-public class JSONBuilder implements Cloneable {
+public class JsonBuilder implements Cloneable {
 
-    private static final Logger log = LoggerFactory.getLogger(JSONBuilder.class);
+    private static final Logger log = LoggerFactory.getLogger(JsonBuilder.class);
 
     private ObjectMapper mapper = new ObjectMapper();
     private ObjectWriter ow = mapper.writer().withDefaultPrettyPrinter();
-    private SimpleModule testModule = new SimpleModule("MyModule", new Version(1, 0, 0, null));
     private Node node;
     private List<String> regexExcludes = new LinkedList<String>();
     private boolean excludeAll = false;
@@ -82,8 +79,15 @@ public class JSONBuilder implements Cloneable {
 
     private boolean childrenOnly;
 
-    private JSONBuilder() {
-        mapper.registerModule(testModule);
+    protected JsonBuilder() {
+    }
+
+    protected void setNode(Node node) {
+        this.node = node;
+    }
+
+    protected void setChildrenOnly(boolean childrenOnly) {
+        this.childrenOnly = childrenOnly;
     }
 
     /**
@@ -94,7 +98,7 @@ public class JSONBuilder implements Cloneable {
      * @param repository
      *            repository in which to look for node matching the id specified in the property.
      */
-    public JSONBuilder expand(String propertyName, String repository) {
+    public JsonBuilder expand(String propertyName, String repository) {
         this.expands.put(propertyName, repository);
         return this;
     }
@@ -102,7 +106,7 @@ public class JSONBuilder implements Cloneable {
     /**
      * Filter out all properties. Use together with butInclude() to add some back.
      */
-    public JSONBuilder excludeAll() {
+    public JsonBuilder excludeAll() {
         this.excludeAll = true;
         return this;
     }
@@ -110,7 +114,7 @@ public class JSONBuilder implements Cloneable {
     /**
      * Excludes properties matching provided regex.
      */
-    public JSONBuilder excludeWithRegex(String... string) {
+    public JsonBuilder excludeWithRegex(String... string) {
         this.regexExcludes.addAll(Arrays.asList(string));
         return this;
     }
@@ -118,42 +122,9 @@ public class JSONBuilder implements Cloneable {
     /**
      * Includes only specified properties. Use together with excludeAll().
      */
-    public JSONBuilder butInclude(String... string) {
+    public JsonBuilder butInclude(String... string) {
         this.butInclude.addAll(Arrays.asList(string));
         return this;
-    }
-
-    /**
-     * Will operate on passed in node.
-     */
-    public static JSONBuilder with(ContentMap content) {
-        return with(content.getJCRNode());
-    }
-
-    /**
-     * Will operate on passed in node.
-     */
-    public static JSONBuilder with(Node node) {
-        JSONBuilder foo = new JSONBuilder();
-        foo.node = node;
-        return foo;
-    }
-
-    /**
-     * Will skip current node, but iterate over all children of it instead.
-     */
-    public static JSONBuilder withChildNodesOf(ContentMap content) {
-        return withChildNodesOf(content.getJCRNode());
-    }
-
-    /**
-     * Will skip current node, but iterate over all children of it instead.
-     */
-    public static JSONBuilder withChildNodesOf(Node node) {
-        JSONBuilder foo = new JSONBuilder();
-        foo.node = node;
-        foo.childrenOnly = true;
-        return foo;
     }
 
     /**
@@ -172,23 +143,19 @@ public class JSONBuilder implements Cloneable {
         return json;
     }
 
-    private JSONBuilder cloneWith(Node n) {
-        JSONBuilder clone = clone();
+    private JsonBuilder cloneWith(Node n) {
+        JsonBuilder clone = clone();
         clone.node = n;
         return clone;
     }
 
     @Override
-    protected JSONBuilder clone() {
+    protected JsonBuilder clone() {
         try {
-            return (JSONBuilder) super.clone();
+            return (JsonBuilder) super.clone();
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    private void setNode(Node node) {
-        this.node = node;
     }
 
     /**
@@ -201,9 +168,9 @@ public class JSONBuilder implements Cloneable {
          */
         private final Map<String, Method> specialProperties = new HashMap<String, Method>();
 
-        private JSONBuilder config;
+        private JsonBuilder config;
 
-        public EntryableContentMap(JSONBuilder builder) {
+        public EntryableContentMap(JsonBuilder builder) {
             super(builder.node);
             this.config = builder;
 
@@ -291,7 +258,7 @@ public class JSONBuilder implements Cloneable {
                 } else {
                     expandedNode = session.getNodeByIdentifier(expandable);
                 }
-                JSONBuilder builder = config.clone();
+                JsonBuilder builder = config.clone();
                 builder.setNode(expandedNode);
                 return new EntryableContentMap(builder);
             } catch (RepositoryException e) {

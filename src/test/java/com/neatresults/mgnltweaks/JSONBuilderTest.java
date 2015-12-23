@@ -33,7 +33,7 @@ import info.magnolia.test.RepositoryTestCase;
 /**
  * Just a test.
  */
-public class JSONBuilderTest extends RepositoryTestCase {
+public class JsonBuilderTest extends RepositoryTestCase {
 
     private final String rootTree = "/home.@type=mgnl:page\n" +
             "/home/mgnl_apex.@type=mgnl:apex\n" +
@@ -131,7 +131,7 @@ public class JSONBuilderTest extends RepositoryTestCase {
     @Test
     public void testPrintAll() throws Exception {
         Session session = MgnlContext.getInstance().getJCRSession("website");
-        String json = JSONBuilder.with(session.getNode("/home/section2/article/mgnl:apex")).build();
+        String json = JsonTemplatingFunctions.with(session.getNode("/home/section2/article/mgnl:apex")).build();
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"mgnl:created\" : "));
         assertThat(json, containsString("\"jcr:created\" : "));
@@ -149,7 +149,7 @@ public class JSONBuilderTest extends RepositoryTestCase {
         Node node = session.getNode("/home/section2/article/mgnl:apex");
         node.setProperty("baz", catNode.getIdentifier());
         node.save();
-        String json = JSONBuilder.with(node).expand("baz", "category").build();
+        String json = JsonTemplatingFunctions.with(node).expand("baz", "category").build();
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"baz\" : {"));
         assertThat(json, containsString("" + catNode.getIdentifier()));
@@ -168,7 +168,7 @@ public class JSONBuilderTest extends RepositoryTestCase {
         node.setProperty("baz", catNode.getIdentifier());
         node.save();
         node = new JCRMgnlPropertiesFilteringNodeWrapper(node);
-        String json = JSONBuilder.with(node).expand("baz", "category").build();
+        String json = JsonTemplatingFunctions.with(node).expand("baz", "category").build();
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"baz\" : {"));
         assertThat(json, containsString("" + catNode.getIdentifier()));
@@ -187,7 +187,7 @@ public class JSONBuilderTest extends RepositoryTestCase {
         Node node = session.getNode("/home/section2/article/mgnl:apex");
         node.setProperty("baz", catNode.getIdentifier());
         node.save();
-        String json = JSONBuilder.with(node).expand("baz", "category").excludeWithRegex(".*:.*").build();
+        String json = JsonTemplatingFunctions.with(node).expand("baz", "category").excludeWithRegex(".*:.*").build();
         assertThat(json, startsWith("{"));
         assertThat(json, not(containsString("\"jcr:created\" : ")));
         assertThat(json, containsString("\"baz\" : {"));
@@ -209,7 +209,7 @@ public class JSONBuilderTest extends RepositoryTestCase {
             iter.nextNode().setProperty("baz", catNode.getIdentifier());
         }
         session.save();
-        String json = JSONBuilder.withChildNodesOf(node).expand("baz", "category").excludeWithRegex(".*:.*").build();
+        String json = JsonTemplatingFunctions.withChildNodesOf(node).expand("baz", "category").excludeWithRegex(".*:.*").build();
         assertThat(json, startsWith("{"));
         assertThat(json, allOf(containsString("\"alias\""), containsString("\"alias2\""), containsString("\"alias3\""), containsString("\"alias4\""), containsString("\"alias5\""), containsString("\"alias6\"")));
         assertThat(json, not(containsString("\"" + node.getIdentifier() + "\"")));
@@ -231,7 +231,7 @@ public class JSONBuilderTest extends RepositoryTestCase {
         Node node = session.getNode("/home/section2/article/mgnl:apex");
         node.setProperty("baz", catNode.getIdentifier());
         node.save();
-        String json = JSONBuilder.with(node).expand("baz", "category").excludeAll().butInclude("@id", "name", "baz").build();
+        String json = JsonTemplatingFunctions.with(node).expand("baz", "category").excludeAll().butInclude("@id", "name", "baz").build();
         assertThat(json, startsWith("{"));
         assertThat(json, not(containsString("\"jcr:created\" : ")));
         assertThat(json, containsString("\"baz\" : {"));
@@ -249,7 +249,7 @@ public class JSONBuilderTest extends RepositoryTestCase {
     @Test
     public void testExcludes() throws Exception {
         Session session = MgnlContext.getInstance().getJCRSession("website");
-        String json = JSONBuilder.with(session.getNode("/home/section2/article/mgnl:apex")).excludeWithRegex("jcr:.*").build();
+        String json = JsonTemplatingFunctions.with(session.getNode("/home/section2/article/mgnl:apex")).excludeWithRegex("jcr:.*").build();
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"mgnl:created\" : "));
         assertThat(json, not(containsString("\"jcr:created\" : ")));
@@ -264,7 +264,7 @@ public class JSONBuilderTest extends RepositoryTestCase {
     @Test
     public void testExcludes2() throws Exception {
         Session session = MgnlContext.getInstance().getJCRSession("website");
-        String json = JSONBuilder.with(session.getNode("/home/section2/article/mgnl:apex")).excludeWithRegex("jcr:.*", "mgnl:.*", "@.*").build();
+        String json = JsonTemplatingFunctions.with(session.getNode("/home/section2/article/mgnl:apex")).excludeWithRegex("jcr:.*", "mgnl:.*", "@.*").build();
         assertEquals("{ }", json);
     }
 
@@ -276,7 +276,7 @@ public class JSONBuilderTest extends RepositoryTestCase {
     @Test
     public void testExcludes3() throws Exception {
         Session session = MgnlContext.getInstance().getJCRSession("website");
-        String json = JSONBuilder.with(session.getNode("/home/section2/article/mgnl:apex")).excludeWithRegex(".*").build();
+        String json = JsonTemplatingFunctions.with(session.getNode("/home/section2/article/mgnl:apex")).excludeWithRegex(".*").build();
         assertEquals("{ }", json);
     }
 
@@ -288,7 +288,7 @@ public class JSONBuilderTest extends RepositoryTestCase {
     @Test
     public void testExcludes4() throws Exception {
         Session session = MgnlContext.getInstance().getJCRSession("website");
-        String json = JSONBuilder.with(session.getNode("/home/section2/article/mgnl:apex")).excludeAll().butInclude("mgnl:createdBy").build();
+        String json = JsonTemplatingFunctions.with(session.getNode("/home/section2/article/mgnl:apex")).excludeAll().butInclude("mgnl:createdBy").build();
         assertEquals("{\n" +
                 "  \"mgnl:createdBy\" : \"anonymous\"\n" +
                 "}", json);

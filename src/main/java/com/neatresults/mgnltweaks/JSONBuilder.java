@@ -25,6 +25,7 @@
  */
 package com.neatresults.mgnltweaks;
 
+import static com.neatresults.Java8Util.asNodeStream;
 import static com.neatresults.Java8Util.asPropertyStream;
 import static com.neatresults.Java8Util.getName;
 
@@ -32,6 +33,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -39,12 +41,14 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import javax.jcr.Node;
+import javax.jcr.NodeIterator;
 import javax.jcr.PathNotFoundException;
 import javax.jcr.PropertyIterator;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.nodetype.NodeType;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,39 +80,102 @@ public class JSONBuilder implements Cloneable {
     private List<String> butInclude = new LinkedList<String>();
     private Map<String, String> expands = new HashMap<String, String>();
 
+    private boolean childrenOnly;
+
     private JSONBuilder() {
         mapper.registerModule(testModule);
     }
 
+    /**
+     * Will expand id into sub array.
+     *
+     * @param propertyName
+     *            property to expand.
+     * @param repository
+     *            repository in which to look for node matching the id specified in the property.
+     */
     public JSONBuilder expand(String propertyName, String repository) {
         this.expands.put(propertyName, repository);
         return this;
     }
 
+    /**
+     * Filter out all properties. Use together with butInclude() to add some back.
+     */
     public JSONBuilder excludeAll() {
         this.excludeAll = true;
         return this;
     }
 
+    /**
+     * Excludes properties matching provided regex.
+     */
     public JSONBuilder excludeWithRegex(String... string) {
         this.regexExcludes.addAll(Arrays.asList(string));
         return this;
     }
 
+    /**
+     * Includes only specified properties. Use together with excludeAll().
+     */
     public JSONBuilder butInclude(String... string) {
         this.butInclude.addAll(Arrays.asList(string));
         return this;
     }
 
+    /**
+     * Will operate on passed in node.
+     */
+    public static JSONBuilder with(ContentMap content) {
+        return with(content.getJCRNode());
+    }
+
+    /**
+     * Will operate on passed in node.
+     */
     public static JSONBuilder with(Node node) {
         JSONBuilder foo = new JSONBuilder();
         foo.node = node;
         return foo;
     }
 
+    /**
+     * Will skip current node, but iterate over all children of it instead.
+     */
+    public static JSONBuilder withChildNodesOf(ContentMap content) {
+        return withChildNodesOf(content.getJCRNode());
+    }
+
+    /**
+     * Will skip current node, but iterate over all children of it instead.
+     */
+    public static JSONBuilder withChildNodesOf(Node node) {
+        JSONBuilder foo = new JSONBuilder();
+        foo.node = node;
+        foo.childrenOnly = true;
+        return foo;
+    }
+
+    /**
+     * Executes configured chain of operations and produces the json output.
+     */
     public String build() throws JsonProcessingException, PathNotFoundException, RepositoryException {
-        String json = ow.writeValueAsString(new EntryableContentMap(this));
+        String json;
+        if (childrenOnly) {
+            Map<String, EntryableContentMap> childNodes = new LinkedHashMap<String, EntryableContentMap>();
+            NodeIterator nodes = this.node.getNodes();
+            asNodeStream(nodes).map(this::cloneWith).forEach(builder -> childNodes.put(getName(builder.node), new EntryableContentMap(builder)));
+            json = ow.writeValueAsString(childNodes);
+        } else {
+            json = ow.writeValueAsString(new EntryableContentMap(this));
+        }
         return json;
+    }
+
+    private JSONBuilder cloneWith(Node n) {
+        JSONBuilder clone = clone();
+        clone.node = n;
+        return clone;
     }
 
     @Override
@@ -211,7 +278,19 @@ public class JSONBuilder implements Cloneable {
             String workspace = config.expands.get(expandableProperty);
             try {
                 Session session = MgnlContext.getJCRSession(workspace);
-                Node expandedNode = session.getNodeByIdentifier(PropertyUtil.getValueString(node.getProperty(expandableProperty)));
+                String expandable = PropertyUtil.getValueString(node.getProperty(expandableProperty));
+                if (expandable == null) {
+                    return null;
+                }
+                if (expandable.startsWith("jcr:")) {
+                    expandable = StringUtils.removeStart(expandable, "jcr:");
+                }
+                Node expandedNode;
+                if (expandable.startsWith("/")) {
+                    expandedNode = session.getNode(expandable);
+                } else {
+                    expandedNode = session.getNodeByIdentifier(expandable);
+                }
                 JSONBuilder builder = config.clone();
                 builder.setNode(expandedNode);
                 return new EntryableContentMap(builder);

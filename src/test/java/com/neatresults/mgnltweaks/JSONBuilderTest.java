@@ -1,5 +1,6 @@
 package com.neatresults.mgnltweaks;
 
+import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.CoreMatchers.not;
@@ -10,6 +11,7 @@ import static org.junit.Assert.assertThat;
 import java.util.Arrays;
 
 import javax.jcr.Node;
+import javax.jcr.NodeIterator;
 import javax.jcr.Session;
 import javax.jcr.nodetype.NodeType;
 import javax.jcr.nodetype.NodeTypeManager;
@@ -31,7 +33,7 @@ import info.magnolia.test.RepositoryTestCase;
 /**
  * Just a test.
  */
-public class FooTest extends RepositoryTestCase {
+public class JSONBuilderTest extends RepositoryTestCase {
 
     private final String rootTree = "/home.@type=mgnl:page\n" +
             "/home/mgnl_apex.@type=mgnl:apex\n" +
@@ -191,6 +193,31 @@ public class FooTest extends RepositoryTestCase {
         assertThat(json, containsString("\"baz\" : {"));
         assertThat(json, containsString("\"name\" : \"myCategory\""));
         assertThat(json, endsWith("}"));
+    }
+
+    /**
+     * jsonfn.with(content).expand("baz", "category").excludeWithRegex(".*:.*").produce()
+     *
+     * ==> { "foo" : "hahaha", "baz" : {"identifier" : "1234-123456-1234", "name" : "cat1"}, b: 1234, "bar" : "meh", ... }
+     */
+    @Test
+    public void testExpandAndFilterWithChildren() throws Exception {
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        Node node = session.getNode("/home/section/article/mgnl:apex");
+        NodeIterator iter = node.getNodes();
+        while (iter.hasNext()) {
+            iter.nextNode().setProperty("baz", catNode.getIdentifier());
+        }
+        session.save();
+        String json = JSONBuilder.withChildNodesOf(node).expand("baz", "category").excludeWithRegex(".*:.*").build();
+        assertThat(json, startsWith("{"));
+        assertThat(json, allOf(containsString("\"alias\""), containsString("\"alias2\""), containsString("\"alias3\""), containsString("\"alias4\""), containsString("\"alias5\""), containsString("\"alias6\"")));
+        assertThat(json, not(containsString("\"" + node.getIdentifier() + "\"")));
+        assertThat(json, not(containsString("\"jcr:created\" : ")));
+        assertThat(json, containsString("\"baz\" : {"));
+        assertThat(json, containsString("\"name\" : \"myCategory\""));
+        assertThat(json, endsWith("}"));
+        System.out.println(json);
     }
 
     /**

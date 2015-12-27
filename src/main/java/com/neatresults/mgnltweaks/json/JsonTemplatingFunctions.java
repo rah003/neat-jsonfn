@@ -23,7 +23,7 @@
  * use neat-tweaks commercially, please contact owner at the address above.
  *
  */
-package com.neatresults.mgnltweaks;
+package com.neatresults.mgnltweaks.json;
 
 import javax.jcr.Node;
 
@@ -40,14 +40,14 @@ public class JsonTemplatingFunctions {
     /**
      * Will operate on passed in node.
      */
-    public static JsonBuilder with(ContentMap content) {
-        return with(content.getJCRNode());
+    public static JsonBuilder from(ContentMap content) {
+        return from(content.getJCRNode());
     }
 
     /**
      * Will operate on passed in node.
      */
-    public static JsonBuilder with(Node node) {
+    public static JsonBuilder from(Node node) {
         JsonBuilder foo = new JsonBuilder();
         foo.setNode(node);
         return foo;
@@ -56,14 +56,14 @@ public class JsonTemplatingFunctions {
     /**
      * Will skip current node, but iterate over all children of it instead.
      */
-    public static JsonBuilder withChildNodesOf(ContentMap content) {
-        return withChildNodesOf(content.getJCRNode());
+    public static JsonBuilder fromChildNodesOf(ContentMap content) {
+        return fromChildNodesOf(content.getJCRNode());
     }
 
     /**
      * Will skip current node, but iterate over all children of it instead.
      */
-    public static JsonBuilder withChildNodesOf(Node node) {
+    public static JsonBuilder fromChildNodesOf(Node node) {
         JsonBuilder foo = new JsonBuilder();
         foo.setNode(node);
         foo.setChildrenOnly(true);

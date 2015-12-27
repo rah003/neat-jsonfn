@@ -23,7 +23,7 @@
  * use neat-tweaks commercially, please contact owner at the address above.
  *
  */
-package com.neatresults.mgnltweaks;
+package com.neatresults.mgnltweaks.json;
 
 import static com.neatresults.Java8Util.asNodeStream;
 import static com.neatresults.Java8Util.asPropertyStream;
@@ -42,7 +42,6 @@ import java.util.stream.Stream;
 
 import javax.jcr.Node;
 import javax.jcr.NodeIterator;
-import javax.jcr.PathNotFoundException;
 import javax.jcr.PropertyIterator;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -60,6 +59,7 @@ import com.neatresults.PredicateSplitterConsumer;
 import info.magnolia.context.MgnlContext;
 import info.magnolia.jcr.util.ContentMap;
 import info.magnolia.jcr.util.PropertyUtil;
+import info.magnolia.link.LinkUtil;
 
 /**
  * Builder class for converting JCR nodes into json ... with few little extras :D .
@@ -72,12 +72,12 @@ public class JsonBuilder implements Cloneable {
     private ObjectWriter ow = mapper.writer().withDefaultPrettyPrinter();
     private Node node;
     private List<String> regexExcludes = new LinkedList<String>();
-    private boolean excludeAll = false;
-    private boolean includeAll = false;
     private List<String> butInclude = new LinkedList<String>();
     private Map<String, String> expands = new HashMap<String, String>();
 
     private boolean childrenOnly;
+
+    private int level;
 
     protected JsonBuilder() {
     }
@@ -100,52 +100,75 @@ public class JsonBuilder implements Cloneable {
      */
     public JsonBuilder expand(String propertyName, String repository) {
         this.expands.put(propertyName, repository);
-        return this;
-    }
-
-    /**
-     * Filter out all properties. Use together with butInclude() to add some back.
-     */
-    public JsonBuilder excludeAll() {
-        this.excludeAll = true;
+        this.butInclude.add(propertyName);
         return this;
     }
 
     /**
      * Excludes properties matching provided regex.
      */
-    public JsonBuilder excludeWithRegex(String... string) {
+    public JsonBuilder exclude(String... string) {
         this.regexExcludes.addAll(Arrays.asList(string));
+        return this;
+    }
+
+    /**
+     * will expand children of current node number of levels down.
+     */
+    public JsonBuilder down(int level) {
+        // one for zero based index, and one for not including the number passed in
+        this.level = level - 1;
         return this;
     }
 
     /**
      * Includes only specified properties. Use together with excludeAll().
      */
-    public JsonBuilder butInclude(String... string) {
+    public JsonBuilder add(String... string) {
         this.butInclude.addAll(Arrays.asList(string));
+        return this;
+    }
+
+    /**
+     * Includes only specified properties. Use together with excludeAll().
+     */
+    public JsonBuilder addAll() {
+        this.butInclude.add(".*");
         return this;
     }
 
     /**
      * Executes configured chain of operations and produces the json output.
      */
-    public String build() throws JsonProcessingException, PathNotFoundException, RepositoryException {
-        String json;
-        if (childrenOnly) {
-            Map<String, EntryableContentMap> childNodes = new LinkedHashMap<String, EntryableContentMap>();
-            NodeIterator nodes = this.node.getNodes();
-            asNodeStream(nodes).map(this::cloneWith).forEach(builder -> childNodes.put(getName(builder.node), new EntryableContentMap(builder)));
-            json = ow.writeValueAsString(childNodes);
-        } else {
-            json = ow.writeValueAsString(new EntryableContentMap(this));
+    public String print() {
+        try {
+            String json;
+            if (childrenOnly) {
+                Map<String, EntryableContentMap> childNodes = new LinkedHashMap<String, EntryableContentMap>();
+                NodeIterator nodes = this.node.getNodes();
+                asNodeStream(nodes).map(this::cloneWith).forEach(builder -> childNodes.put(getName(builder.node), new EntryableContentMap(builder)));
+                json = ow.writeValueAsString(childNodes);
+            } else {
+                json = ow.writeValueAsString(new EntryableContentMap(this));
+            }
+            return json;
+        } catch (JsonProcessingException | RepositoryException e) {
+            // ignore
         }
-        return json;
+
+        return "{ }";
     }
 
     private JsonBuilder cloneWith(Node n) {
         JsonBuilder clone = clone();
         clone.node = n;
+        return clone;
+    }
+
+    private JsonBuilder cloneLevelDown(Node n) {
+        JsonBuilder clone = clone();
+        clone.node = n;
+        clone.level--;
         return clone;
     }
 
@@ -181,6 +204,7 @@ public class JsonBuilder implements Cloneable {
                 specialProperties.put("@path", clazz.getMethod("getPath", (Class<?>[]) null));
                 specialProperties.put("@depth", clazz.getMethod("getDepth", (Class<?>[]) null));
                 specialProperties.put("@nodeType", clazz.getMethod("getPrimaryNodeType", (Class<?>[]) null));
+                specialProperties.put("@link", LinkUtil.class.getMethod("createAbsoluteLink", Node.class));
             } catch (SecurityException e) {
                 log.debug("Failed to gain access to Node get***() method. Check VM security settings. {}", e.getLocalizedMessage(), e);
             } catch (NoSuchMethodException e) {
@@ -196,29 +220,25 @@ public class JsonBuilder implements Cloneable {
                 Node node = getJCRNode();
                 properties = node.getProperties();
                 Stream<String> stream;
-                if (config.excludeAll) {
-                    stream = asPropertyStream(properties)
-                            .map(prop -> getName(prop))
-                            .filter(name -> matchesRegex(name, config.butInclude));
-                } else {
-                    stream = asPropertyStream(properties)
-                            .map(prop -> getName(prop))
-                            .filter(name -> !matchesRegex(name, config.regexExcludes));
-                }
+                stream = asPropertyStream(properties)
+                        .map(prop -> getName(prop))
+                        .filter(name -> matchesRegex(name, config.butInclude))
+                        .filter(name -> !matchesRegex(name, config.regexExcludes));
+
                 stream.forEach(new PredicateSplitterConsumer<String>(config.expands::containsKey,
                         expandableProperty -> props.put(expandableProperty, expand(expandableProperty, node)),
                         flatProperty -> props.put(flatProperty, PropertyUtil.getPropertyValueObject(node, flatProperty))));
 
                 Stream<Entry<String, Method>> specialStream;
-                if (config.excludeAll) {
-                    specialStream = specialProperties.entrySet().stream()
-                            .filter(entry -> matchesRegex(entry.getKey(), config.butInclude));
-                } else {
-                    specialStream = specialProperties.entrySet().stream()
-                            .filter(entry -> !matchesRegex(entry.getKey(), config.regexExcludes));
-                }
+                specialStream = specialProperties.entrySet().stream()
+                        .filter(entry -> matchesRegex(entry.getKey(), config.butInclude))
+                        .filter(entry -> !matchesRegex(entry.getKey(), config.regexExcludes));
                 specialStream.forEach(entry -> props.put(entry.getKey(), invoke(entry.getValue(), node)));
-
+                if (config.level > 0) {
+                    asNodeStream(node.getNodes())
+                    .map(config::cloneLevelDown)
+                    .forEach(builder -> props.put(getName(builder.node), new EntryableContentMap(builder)));
+                }
             } catch (RepositoryException e) {
                 // ignore and return empty map
             }
@@ -227,6 +247,20 @@ public class JsonBuilder implements Cloneable {
 
         private Object invoke(Method method, Node node) {
             try {
+                try {
+                    if (method.getName().equals("createAbsoluteLink") && node.getPrimaryNodeType().getName().equals("mgnl:asset")) {
+                        Class<?> clazz = this.getClass().forName("info.magnolia.dam.templating.functions.DamTemplatingFunctions");
+                        Method dammethod = clazz.getMethod("getAssetLink", String.class);
+                        Object damfn = clazz.newInstance();
+                        return dammethod.invoke(damfn, "jcr:" + node.getIdentifier());
+
+                    }
+                } catch (RepositoryException | ClassNotFoundException | InstantiationException | NoSuchMethodException | SecurityException e) {
+                    // bad luck we handle it the usual way
+                }
+                if (method.getParameterCount() > 0) {
+                    return method.invoke(null, node);
+                }
                 Object result = method.invoke(node);
                 if (result instanceof NodeType) {
                     return ((NodeType) result).getName();

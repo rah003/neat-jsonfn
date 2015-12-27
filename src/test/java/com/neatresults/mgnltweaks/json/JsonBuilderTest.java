@@ -23,7 +23,7 @@
  * use neat-tweaks commercially, please contact owner at the address above.
  *
  */
-package com.neatresults.mgnltweaks;
+package com.neatresults.mgnltweaks.json;
 
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.containsString;
@@ -32,6 +32,9 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 
@@ -46,13 +49,17 @@ import org.apache.commons.io.IOUtils;
 import org.junit.Before;
 import org.junit.Test;
 
+import info.magnolia.cms.beans.config.URI2RepositoryManager;
+import info.magnolia.cms.i18n.I18nContentSupport;
 import info.magnolia.context.MgnlContext;
 import info.magnolia.jcr.util.NodeTypeTemplateUtil;
 import info.magnolia.jcr.util.NodeTypes;
 import info.magnolia.jcr.util.PropertiesImportExport;
 import info.magnolia.jcr.wrapper.JCRMgnlPropertiesFilteringNodeWrapper;
+import info.magnolia.link.Link;
 import info.magnolia.objectfactory.Components;
 import info.magnolia.repository.RepositoryManager;
+import info.magnolia.test.ComponentsTestUtil;
 import info.magnolia.test.RepositoryTestCase;
 
 /**
@@ -149,14 +156,14 @@ public class JsonBuilderTest extends RepositoryTestCase {
     }
 
     /**
-     * jsonfn.with(content).produce()
+     * jsonfn.from(content).add(".*").print()
      *
      * ==> { "foo" : "hahaha", "a" :"x", b: 1234, "bar" : "meh", ... }
      */
     @Test
     public void testPrintAll() throws Exception {
         Session session = MgnlContext.getInstance().getJCRSession("website");
-        String json = JsonTemplatingFunctions.with(session.getNode("/home/section2/article/mgnl:apex")).build();
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex")).add(".*").print();
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"mgnl:created\" : "));
         assertThat(json, containsString("\"jcr:created\" : "));
@@ -164,7 +171,32 @@ public class JsonBuilderTest extends RepositoryTestCase {
     }
 
     /**
-     * jsonfn.with(content).expand("baz", "category").produce()
+     * jsonfn.from(content).add("@link").print()
+     *
+     * ==> { "@link" : "/some/path.html" }
+     */
+    @Test
+    public void testPrintLink() throws Exception {
+        // GIVEN
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        URI2RepositoryManager man = mock(URI2RepositoryManager.class);
+        when(man.getURI(any(Link.class))).thenReturn("/Foo/Link/Test.html");
+        ComponentsTestUtil.setInstance(URI2RepositoryManager.class, man);
+        I18nContentSupport i18n = mock(I18nContentSupport.class);
+        when(i18n.toI18NURI(any(String.class))).thenReturn("/Foo/Link/Test.html");
+        ComponentsTestUtil.setInstance(I18nContentSupport.class, i18n);
+        // WHEN
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex")).add("@link").print();
+        // THEN
+        assertThat(json, startsWith("{"));
+        // starts w/ null, because we don't set any context path
+        assertThat(json, containsString("\"@link\" : \"null/Foo/Link/Test.html\""));
+        assertThat(json, endsWith("}"));
+        System.out.println(json);
+    }
+
+    /**
+     * jsonfn.from(content).expand("baz", "category").print()
      *
      * ==> { "foo" : "hahaha", "baz" : {"identifier" : "1234-123456-1234", "name" : "cat1"}, b: 1234, "bar" : "meh", ... }
      */
@@ -174,7 +206,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
         Node node = session.getNode("/home/section2/article/mgnl:apex");
         node.setProperty("baz", catNode.getIdentifier());
         node.save();
-        String json = JsonTemplatingFunctions.with(node).expand("baz", "category").build();
+        String json = JsonTemplatingFunctions.from(node).expand("baz", "category").add("@id").print();
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"baz\" : {"));
         assertThat(json, containsString("" + catNode.getIdentifier()));
@@ -182,7 +214,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
     }
 
     /**
-     * jsonfn.with(content).expand("baz", "category").produce()
+     * jsonfn.from(content).expand("baz", "category").print()
      *
      * ==> { "foo" : "hahaha", "baz" : {"identifier" : "1234-123456-1234", "name" : "cat1"}, b: 1234, "bar" : "meh", ... }
      */
@@ -193,16 +225,15 @@ public class JsonBuilderTest extends RepositoryTestCase {
         node.setProperty("baz", catNode.getIdentifier());
         node.save();
         node = new JCRMgnlPropertiesFilteringNodeWrapper(node);
-        String json = JsonTemplatingFunctions.with(node).expand("baz", "category").build();
+        String json = JsonTemplatingFunctions.from(node).expand("baz", "category").add("@id").print();
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"baz\" : {"));
         assertThat(json, containsString("" + catNode.getIdentifier()));
         assertThat(json, endsWith("}"));
-        System.out.println(json);
     }
 
     /**
-     * jsonfn.with(content).expand("baz", "category").excludeWithRegex(".*:.*").produce()
+     * jsonfn.from(content).expand("baz", "category").exclude(".*:.*").print()
      *
      * ==> { "foo" : "hahaha", "baz" : {"identifier" : "1234-123456-1234", "name" : "cat1"}, b: 1234, "bar" : "meh", ... }
      */
@@ -212,7 +243,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
         Node node = session.getNode("/home/section2/article/mgnl:apex");
         node.setProperty("baz", catNode.getIdentifier());
         node.save();
-        String json = JsonTemplatingFunctions.with(node).expand("baz", "category").excludeWithRegex(".*:.*").build();
+        String json = JsonTemplatingFunctions.from(node).expand("baz", "category").add("name").print();
         assertThat(json, startsWith("{"));
         assertThat(json, not(containsString("\"jcr:created\" : ")));
         assertThat(json, containsString("\"baz\" : {"));
@@ -221,7 +252,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
     }
 
     /**
-     * jsonfn.with(content).expand("baz", "category").excludeWithRegex(".*:.*").produce()
+     * jsonfn.from(content).expand("baz", "category").exclude(".*:.*").print()
      *
      * ==> { "foo" : "hahaha", "baz" : {"identifier" : "1234-123456-1234", "name" : "cat1"}, b: 1234, "bar" : "meh", ... }
      */
@@ -234,7 +265,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
             iter.nextNode().setProperty("baz", catNode.getIdentifier());
         }
         session.save();
-        String json = JsonTemplatingFunctions.withChildNodesOf(node).expand("baz", "category").excludeWithRegex(".*:.*").build();
+        String json = JsonTemplatingFunctions.fromChildNodesOf(node).expand("baz", "category").add("name").print();
         assertThat(json, startsWith("{"));
         assertThat(json, allOf(containsString("\"alias\""), containsString("\"alias2\""), containsString("\"alias3\""), containsString("\"alias4\""), containsString("\"alias5\""), containsString("\"alias6\"")));
         assertThat(json, not(containsString("\"" + node.getIdentifier() + "\"")));
@@ -242,11 +273,41 @@ public class JsonBuilderTest extends RepositoryTestCase {
         assertThat(json, containsString("\"baz\" : {"));
         assertThat(json, containsString("\"name\" : \"myCategory\""));
         assertThat(json, endsWith("}"));
-        System.out.println(json);
     }
 
     /**
-     * jsonfn.with(content).expand("baz", "category").excludeWithRegex(".*:.*").produce()
+     * jsonfn.from(content).expand("baz", "category").down(4).print()
+     *
+     * ==> { "foo" : "hahaha", "baz" : {"identifier" : "1234-123456-1234", "name" : "cat1"}, b: 1234, "bar" : "meh", ... }
+     */
+    @Test
+    public void testExpandAndFilterAndRepeatWithChildren() throws Exception {
+        // GIVEN
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        Node node = session.getNode("/home/section/article/mgnl:apex");
+        NodeIterator iter = node.getNodes();
+        while (iter.hasNext()) {
+            iter.nextNode().setProperty("baz", catNode.getIdentifier());
+        }
+        node.getNode("alias2").addNode("level3", "mgnl:contentNode").addNode("level4", "mgnl:contentNode").addNode("level5", "mgnl:contentNode");
+        session.save();
+        // WHEN
+        String json = JsonTemplatingFunctions.fromChildNodesOf(node).expand("baz", "category").down(3).add("@name").print();
+
+        // THEN
+        assertThat(json, startsWith("{"));
+        assertThat(json, allOf(containsString("\"alias\""), containsString("\"alias2\""), containsString("\"alias3\""), containsString("\"alias4\""), containsString("\"alias5\""), containsString("\"alias6\"")));
+        assertThat(json, not(containsString("\"" + node.getIdentifier() + "\"")));
+        assertThat(json, not(containsString("\"jcr:created\" : ")));
+        assertThat(json, containsString("\"baz\" : {"));
+        assertThat(json, containsString("\"@name\" : \"foo\""));
+        assertThat(json, containsString("\"@name\" : \"level4\""));
+        assertThat(json, not(containsString("\"@name\" : \"level5\"")));
+        assertThat(json, endsWith("}"));
+    }
+
+    /**
+     * jsonfn.from(content).expand("baz", "category").exclude(".*:.*").print()
      *
      * ==> { "foo" : "hahaha", "baz" : {"identifier" : "1234-123456-1234", "name" : "cat1"}, b: 1234, "bar" : "meh", ... }
      */
@@ -256,25 +317,24 @@ public class JsonBuilderTest extends RepositoryTestCase {
         Node node = session.getNode("/home/section2/article/mgnl:apex");
         node.setProperty("baz", catNode.getIdentifier());
         node.save();
-        String json = JsonTemplatingFunctions.with(node).expand("baz", "category").excludeAll().butInclude("@id", "name", "baz").build();
+        String json = JsonTemplatingFunctions.from(node).expand("baz", "category").add("@id", "name", "baz").print();
         assertThat(json, startsWith("{"));
         assertThat(json, not(containsString("\"jcr:created\" : ")));
         assertThat(json, containsString("\"baz\" : {"));
         assertThat(json, containsString("\"name\" : \"myCategory\""));
         assertThat(json, containsString("" + catNode.getIdentifier()));
         assertThat(json, endsWith("}"));
-        System.out.println(json);
     }
 
     /**
-     * jsonfn.with(content).excludeWithRegex(".*foo").produce()
+     * jsonfn.from(content).exclude(".*foo").print()
      *
      * ==> { "a" :"x", b: 1234, "bar" : "meh", ... }
      */
     @Test
     public void testExcludes() throws Exception {
         Session session = MgnlContext.getInstance().getJCRSession("website");
-        String json = JsonTemplatingFunctions.with(session.getNode("/home/section2/article/mgnl:apex")).excludeWithRegex("jcr:.*").build();
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex")).add("mgnl:.*").print();
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"mgnl:created\" : "));
         assertThat(json, not(containsString("\"jcr:created\" : ")));
@@ -282,38 +342,38 @@ public class JsonBuilderTest extends RepositoryTestCase {
     }
 
     /**
-     * jsonfn.with(content).excludeWithRegex(".*foo", "bar.*").produce()
+     * jsonfn.from(content).exclude(".*foo", "bar.*").print()
      *
      * ==> { "a" :"x", b: 1234, ... }
      */
     @Test
     public void testExcludes2() throws Exception {
         Session session = MgnlContext.getInstance().getJCRSession("website");
-        String json = JsonTemplatingFunctions.with(session.getNode("/home/section2/article/mgnl:apex")).excludeWithRegex("jcr:.*", "mgnl:.*", "@.*").build();
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex")).add(".*").exclude("jcr:.*", "mgnl:.*", "@.*").print();
         assertEquals("{ }", json);
     }
 
     /**
-     * jsonfn.with(content).excludeWithRegex(".*").produce()
+     * jsonfn.from(content).exclude(".*").print()
      *
      * ==> { }
      */
     @Test
     public void testExcludes3() throws Exception {
         Session session = MgnlContext.getInstance().getJCRSession("website");
-        String json = JsonTemplatingFunctions.with(session.getNode("/home/section2/article/mgnl:apex")).excludeWithRegex(".*").build();
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex")).exclude(".*").print();
         assertEquals("{ }", json);
     }
 
     /**
-     * jsonfn.with(content).excludeAll().butInclude("someProperty").produce()
+     * jsonfn.from(content).add("someProperty").print()
      *
      * ==> { "someProperty" : "someValue" }
      */
     @Test
     public void testExcludes4() throws Exception {
         Session session = MgnlContext.getInstance().getJCRSession("website");
-        String json = JsonTemplatingFunctions.with(session.getNode("/home/section2/article/mgnl:apex")).excludeAll().butInclude("mgnl:createdBy").build();
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex")).add("mgnl:createdBy").print();
         assertEquals("{\n" +
                 "  \"mgnl:createdBy\" : \"anonymous\"\n" +
                 "}", json);

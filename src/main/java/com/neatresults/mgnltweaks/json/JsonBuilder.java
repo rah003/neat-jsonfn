@@ -38,10 +38,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.jcr.Node;
 import javax.jcr.NodeIterator;
+import javax.jcr.Property;
 import javax.jcr.PropertyIterator;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
@@ -307,17 +309,36 @@ public class JsonBuilder implements Cloneable {
 
         private Object expand(String expandableProperty, Node node) {
             Map<String, Object> expanded = new HashMap<String, Object>();
-            String workspace = config.expands.get(expandableProperty);
+            final String workspace = config.expands.get(expandableProperty);
+            try {
+                Property property = node.getProperty(expandableProperty);
+                if (property.isMultiple()) {
+                    List<String> expandables = PropertyUtil.getValuesStringList(property.getValues());
+                    return expandables.stream()
+                            .map(expandable -> expandSingle(expandable, workspace))
+                            .collect(Collectors.toList());
+                } else {
+                    String expandable = PropertyUtil.getValueString(property);
+                    return expandSingle(expandable, workspace);
+                }
+
+            } catch (RepositoryException e) {
+                log.debug(e.getMessage(), e);
+            }
+
+            return expanded;
+        }
+
+        private EntryableContentMap expandSingle(String expandable, String workspace) {
+            if (expandable == null) {
+                return null;
+            }
+            if (expandable.startsWith("jcr:")) {
+                expandable = StringUtils.removeStart(expandable, "jcr:");
+            }
+            Node expandedNode;
             try {
                 Session session = MgnlContext.getJCRSession(workspace);
-                String expandable = PropertyUtil.getValueString(node.getProperty(expandableProperty));
-                if (expandable == null) {
-                    return null;
-                }
-                if (expandable.startsWith("jcr:")) {
-                    expandable = StringUtils.removeStart(expandable, "jcr:");
-                }
-                Node expandedNode;
                 if (expandable.startsWith("/")) {
                     expandedNode = session.getNode(expandable);
                 } else {
@@ -327,10 +348,9 @@ public class JsonBuilder implements Cloneable {
                 builder.setNode(expandedNode);
                 return new EntryableContentMap(builder);
             } catch (RepositoryException e) {
-                e.printStackTrace();
+                log.debug(e.getMessage(), e);
+                return null;
             }
-
-            return expanded;
         }
 
         private boolean matchesRegex(String test, List<String> regexList) {

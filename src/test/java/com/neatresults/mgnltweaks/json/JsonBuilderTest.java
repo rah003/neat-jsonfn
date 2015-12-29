@@ -171,6 +171,25 @@ public class JsonBuilderTest extends RepositoryTestCase {
     }
 
     /**
+     * jsonfn.from(content).add(".*").print()
+     *
+     * ==> { "foo" : "hahaha", "a" :"x", b: 1234, "bar" : "meh", ... }
+     */
+    @Test
+    public void testPrintMultiple() throws Exception {
+        // GIVEN
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        Node node = session.getNode("/home/section2/article/mgnl:apex");
+        node.setProperty("foo", new String[] { "baz", "bar", "boo" });
+        // WHEN
+        String json = JsonTemplatingFunctions.from(node).add("foo").print();
+        // THEN
+        assertThat(json, startsWith("{"));
+        assertThat(json, containsString("\"foo\" : [ \"baz\", \"bar\", \"boo\" ]"));
+        assertThat(json, endsWith("}"));
+    }
+
+    /**
      * jsonfn.from(content).add("@link").print()
      *
      * ==> { "@link" : "/some/path.html" }
@@ -210,6 +229,33 @@ public class JsonBuilderTest extends RepositoryTestCase {
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"baz\" : {"));
         assertThat(json, containsString("" + catNode.getIdentifier()));
+        assertThat(json, endsWith("}"));
+    }
+
+    /**
+     * jsonfn.from(content).expand("baz", "category").print()
+     *
+     * ==> { "foo" : "hahaha", "baz" : {"identifier" : "1234-123456-1234", "name" : "cat1"}, b: 1234, "bar" : "meh", ... }
+     */
+    @Test
+    public void testExpandMultivalue() throws Exception {
+        // GIVEN
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        Node node = session.getNode("/home/section2/article/mgnl:apex");
+        Session catSession = catNode.getSession();
+        catSession.getWorkspace().copy(catNode.getPath(), "/othercat");
+        catSession.save();
+        Node catNode2 = catSession.getNode("/othercat");
+        node.setProperty("baz", new String[] { catNode.getIdentifier(), catNode2.getIdentifier() });
+        node.save();
+        // WHEN
+        String json = JsonTemplatingFunctions.from(node).expand("baz", "category").add("@id").print();
+        // THEN
+        assertThat(json, startsWith("{"));
+        // [{ == array of props ;)
+        assertThat(json, containsString("\"baz\" : [ {"));
+        assertThat(json, containsString("" + catNode.getIdentifier()));
+        assertThat(json, containsString("" + catNode2.getIdentifier()));
         assertThat(json, endsWith("}"));
     }
 

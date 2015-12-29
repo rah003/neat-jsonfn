@@ -17,35 +17,47 @@ Once registered, it is possible to use functions in templates as follows:
 
 you tell functions what node you want to work with:
 
-```jsonfn.with(myNode) ```
+```jsonfn.from(myNode) ```
 
 or maybe you want to work with all child nodes of given node instead:
 
-```jsonfn.withChildNodesOf(myNode) ```
+```jsonfn.fromChildNodesOf(myNode) ```
 
-you can exclude all properties by calling
+you can include all properties by calling (nothing is included by default)
 
-```.excludeAll() ```
+```.addAll() ```
 
-after that, you can explicitly name those you want in:
+you can also explicitly name those you want in:
 
-```.butInclude(“myProp1”, “myProp2”, ...) ```
+```.add(“myProp1”, “myProp2”, ...) ```
 
-or you can just exclude some properties instead of all:
+or just use regex:
+
+```.add(“my.*”, ...) ```
+
+if you have included all, you exclude some properties by:
 
 ```.exclude(“myProp1”, “myProp2”, ...) ```
 
 you can also use regex when excluding props:
 
-```.excludeWithRegex(“my.*”, “some.*more”, ...) ```
+```.exclude(“my.*”, “some.*more”, ...) ```
 
 and most importantly you can also expand any property you want, by providing name of the expanded property and workspace name in which to look for the target:
 
 ```.expand(“categoryId”, “category”) ```
 
+you can also tell function to include links for renditions of binaries by calling:
+
+```.binaryLinkRenditions("rendition1", "rendition2", ...) ```
+
+and control how many levels down should printing node properties as json go (current level only by default):
+
+```.down(int) ```
+
 and last but not least, when you built your chain of operations, you execute on them by calling:
 
-```.build() ```
+```.print() ```
 
 
 License

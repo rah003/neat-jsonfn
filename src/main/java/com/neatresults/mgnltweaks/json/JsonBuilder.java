@@ -60,6 +60,7 @@ import info.magnolia.context.MgnlContext;
 import info.magnolia.jcr.util.ContentMap;
 import info.magnolia.jcr.util.PropertyUtil;
 import info.magnolia.link.LinkUtil;
+import info.magnolia.objectfactory.Components;
 
 /**
  * Builder class for converting JCR nodes into json ... with few little extras :D .
@@ -78,6 +79,8 @@ public class JsonBuilder implements Cloneable {
     private boolean childrenOnly;
 
     private int level;
+
+    private LinkedList<String> renditions = new LinkedList<String>();
 
     protected JsonBuilder() {
     }
@@ -101,6 +104,17 @@ public class JsonBuilder implements Cloneable {
     public JsonBuilder expand(String propertyName, String repository) {
         this.expands.put(propertyName, repository);
         this.butInclude.add(propertyName);
+        return this;
+    }
+
+    /**
+     * Will attempt to retrieve rendition specific link for all generated links. Links will be available as "@rendition_name" : "link-or-null"
+     *
+     * @param variation
+     *            rendition to create link for.
+     */
+    public JsonBuilder binaryLinkRendition(String... variation) {
+        this.renditions.addAll(Arrays.asList(variation));
         return this;
     }
 
@@ -239,10 +253,27 @@ public class JsonBuilder implements Cloneable {
                     .map(config::cloneLevelDown)
                     .forEach(builder -> props.put(getName(builder.node), new EntryableContentMap(builder)));
                 }
+
+                if (node.getPrimaryNodeType().getName().equals("mgnl:asset")) {
+                    config.renditions.stream().forEach(rendition -> props.put("@rendition_" + rendition, generateRenditionLink(rendition, node)));
+                }
             } catch (RepositoryException e) {
                 // ignore and return empty map
             }
             return props.entrySet();
+        }
+
+        private Object generateRenditionLink(String rendition, Node node) {
+            try {
+                Class<?> clazz = Class.forName("info.magnolia.dam.templating.functions.DamTemplatingFunctions");
+                Method dammethod = clazz.getMethod("getAssetLink", String.class, String.class);
+                Object damfn = Components.newInstance(clazz);
+                return dammethod.invoke(damfn, "jcr:" + node.getIdentifier(), rendition);
+            } catch (RepositoryException | ClassNotFoundException | NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+                // bad luck we handle it the usual way
+                e.printStackTrace();
+            }
+            return null;
         }
 
         private Object invoke(Method method, Node node) {

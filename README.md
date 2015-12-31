@@ -73,7 +73,7 @@ Maven dependency
     <dependency>
       <groupId>com.neatresults.mgnltweaks</groupId>
       <artifactId>neat-jsonfn</artifactId>
-      <version>1.0-SNAPSHOT</version>
+      <version>1.0</version>
     </dependency>
 ```
 
@@ -87,4 +87,9 @@ Installation & updates
 -----------------
 Upon instalation, module will register templating functions class and expose it under name jsonfn under freemarker renderer. To run, module requires Java 8.
 
-Module has also dependency on neat-tweaks-common jar version 3.0.4-SNAPSHOT or higher.
+Module has also dependency on neat-tweaks-common jar version 2.0.3 or higher.
+
+Changes
+-----------------
+1.0
+- functions to print JCR nodes in JSON format.

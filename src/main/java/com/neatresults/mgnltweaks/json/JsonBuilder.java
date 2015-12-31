@@ -45,6 +45,7 @@ import javax.jcr.Node;
 import javax.jcr.NodeIterator;
 import javax.jcr.Property;
 import javax.jcr.PropertyIterator;
+import javax.jcr.PropertyType;
 import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.nodetype.NodeType;
@@ -241,7 +242,9 @@ public class JsonBuilder implements Cloneable {
                         .filter(name -> matchesRegex(name, config.butInclude))
                         .filter(name -> !matchesRegex(name, config.regexExcludes));
 
-                stream.forEach(new PredicateSplitterConsumer<String>(config.expands::containsKey,
+                // do not try to include binary data since we don't try to encode them either and jackson just blows w/o that
+                stream.filter(name -> PropertyUtil.getJCRPropertyType(PropertyUtil.getPropertyValueObject(node, name)) != PropertyType.BINARY)
+                .forEach(new PredicateSplitterConsumer<String>(config.expands::containsKey,
                         expandableProperty -> props.put(expandableProperty, expand(expandableProperty, node)),
                         flatProperty -> props.put(flatProperty, PropertyUtil.getPropertyValueObject(node, flatProperty))));
 
@@ -261,6 +264,7 @@ public class JsonBuilder implements Cloneable {
                 }
             } catch (RepositoryException e) {
                 // ignore and return empty map
+                e.printStackTrace();
             }
             return props.entrySet();
         }

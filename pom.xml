@@ -19,8 +19,8 @@
 
   <!-- Please double-check these URLs -->
   <scm>
-    <connection>scm:git:http://git.magnolia-cms.com/forge/neat-jsonfn.git</connection>
-    <developerConnection>scm:git:https://git.magnolia-cms.com/forge/neat-jsonfn.git</developerConnection>
+    <connection>scm:git:https://github.com/rah003/neat-jsonfn.git</connection>
+    <developerConnection>scm:git:https://github.com/rah003/neat-jsonfn.git</developerConnection>
     <url>https://github.com/rah003/neat-jsonfn</url>
     <tag>HEAD</tag>
   </scm>

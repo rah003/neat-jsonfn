@@ -81,15 +81,21 @@ Versions
 -----------------
 Version 1.0.x should be compatible with all Magnolia 5.x versions, but was tested only on 5.4.3 and not before. If you run into any issues w/ older versions, please report them back.
 
-Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-scripted-select/1.0/neat-scripted-select-1.0.jar
+Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-jsonfn/1.0.1/neat-jsonfn-1.0.1.jar
 
 Installation & updates 
 -----------------
 Upon instalation, module will register templating functions class and expose it under name jsonfn under freemarker renderer. To run, module requires Java 8.
 
+Neat-JSONFN uses Jackson to produce json, so you will also need jackson-databind (and it's dependencies jackson-core and jackson-annotations). See https://github.com/FasterXML/jackson-databind for more details and download link. I have used version 2.6.4 (for no particular reason), but higher versions should be fine as well.
+
 Module has also dependency on neat-tweaks-common jar version 2.0.3 or higher.
+
 
 Changes
 -----------------
+1.0.1
+- exclude binary properties to not corrupt produced json
+
 1.0
 - functions to print JCR nodes in JSON format.

@@ -85,6 +85,8 @@ public class JsonBuilder implements Cloneable {
 
     private LinkedList<String> renditions = new LinkedList<String>();
 
+    private String preexisingJson;
+
     protected JsonBuilder() {
     }
 
@@ -167,6 +169,14 @@ public class JsonBuilder implements Cloneable {
                 json = ow.writeValueAsString(childNodes);
             } else {
                 json = ow.writeValueAsString(new EntryableContentMap(this));
+            }
+
+            if (StringUtils.isNotEmpty(preexisingJson)) {
+                if (preexisingJson.trim().endsWith("}")) {
+                    json = "[" + preexisingJson + "," + json + "]";
+                } else if (preexisingJson.trim().endsWith("]")) {
+                    json = StringUtils.substringBeforeLast(preexisingJson, "]") + "," + json + "]";
+                }
             }
             return json;
         } catch (JsonProcessingException | RepositoryException e) {
@@ -360,5 +370,9 @@ public class JsonBuilder implements Cloneable {
         private boolean matchesRegex(String test, List<String> regexList) {
             return !regexList.stream().noneMatch(regex -> test.matches(regex));
         }
+    }
+
+    public void setJson(String json) {
+        this.preexisingJson = json;
     }
 }

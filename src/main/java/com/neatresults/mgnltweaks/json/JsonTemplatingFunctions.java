@@ -25,9 +25,9 @@
  */
 package com.neatresults.mgnltweaks.json;
 
-import javax.jcr.Node;
-
 import info.magnolia.jcr.util.ContentMap;
+
+import javax.jcr.Node;
 
 /**
  * Templating Functions to expose json builder.
@@ -67,6 +67,23 @@ public class JsonTemplatingFunctions {
         JsonBuilder foo = new JsonBuilder();
         foo.setNode(node);
         foo.setChildrenOnly(true);
+        return foo;
+    }
+
+    /**
+     * Will operate on passed in node and append output to provided json.
+     */
+    public static JsonBuilder appendFrom(String json, ContentMap content) {
+        return appendFrom(json, content.getJCRNode());
+    }
+
+    /**
+     * Will operate on passed in node.
+     */
+    public static JsonBuilder appendFrom(String json, Node node) {
+        JsonBuilder foo = new JsonBuilder();
+        foo.setNode(node);
+        foo.setJson(json);
         return foo;
     }
 

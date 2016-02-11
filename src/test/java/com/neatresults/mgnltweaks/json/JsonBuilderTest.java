@@ -424,5 +424,20 @@ public class JsonBuilderTest extends RepositoryTestCase {
                 "}", json);
     }
 
+    /**
+     * jsonfn.from(content).add(".*").print()
+     *
+     * ==> { "foo" : "hahaha", "a" :"x", b: 1234, "bar" : "meh", ... }
+     */
+    @Test
+    public void testPrintAllWithAppend() throws Exception {
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex")).down(2).add("name").print();
+        json = JsonTemplatingFunctions.appendFrom(json, session.getNode("/home/mgnl:apex")).down(2).add("name").print();
+        assertThat(json, startsWith("["));
+        assertThat(json, containsString("\"name\" : \"c\""));
+        assertThat(json, containsString("\"name\" : \"a\""));
+        assertThat(json, endsWith("]"));
+    }
 
 }

@@ -211,7 +211,6 @@ public class JsonBuilderTest extends RepositoryTestCase {
         // starts w/ null, because we don't set any context path
         assertThat(json, containsString("\"@link\" : \"null/Foo/Link/Test.html\""));
         assertThat(json, endsWith("}"));
-        System.out.println(json);
     }
 
     /**
@@ -250,7 +249,6 @@ public class JsonBuilderTest extends RepositoryTestCase {
         node.save();
         // WHEN
         String json = JsonTemplatingFunctions.from(node).expand("baz", "category").add("@id").print();
-        System.out.println(json);
         // THEN
         assertThat(json, startsWith("{"));
         // [{ == array of props ;)
@@ -313,7 +311,6 @@ public class JsonBuilderTest extends RepositoryTestCase {
         }
         session.save();
         String json = JsonTemplatingFunctions.fromChildNodesOf(node).expand("baz", "category").add("@name").add("name").print();
-        System.out.println(json);
         assertThat(json, startsWith("["));
         assertThat(json, allOf(containsString("\"alias\""), containsString("\"alias2\""), containsString("\"alias3\""), containsString("\"alias4\""), containsString("\"alias5\""), containsString("\"alias6\"")));
         assertThat(json, not(containsString("\"" + node.getIdentifier() + "\"")));

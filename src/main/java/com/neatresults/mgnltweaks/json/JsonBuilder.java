@@ -29,11 +29,17 @@ import static com.neatresults.Java8Util.asNodeStream;
 import static com.neatresults.Java8Util.asPropertyStream;
 import static com.neatresults.Java8Util.getName;
 
+import info.magnolia.context.MgnlContext;
+import info.magnolia.jcr.util.ContentMap;
+import info.magnolia.jcr.util.PropertyUtil;
+import info.magnolia.link.LinkUtil;
+import info.magnolia.objectfactory.Components;
+
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -58,12 +64,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.neatresults.PredicateSplitterConsumer;
-
-import info.magnolia.context.MgnlContext;
-import info.magnolia.jcr.util.ContentMap;
-import info.magnolia.jcr.util.PropertyUtil;
-import info.magnolia.link.LinkUtil;
-import info.magnolia.objectfactory.Components;
 
 /**
  * Builder class for converting JCR nodes into json ... with few little extras :D .
@@ -161,9 +161,9 @@ public class JsonBuilder implements Cloneable {
         try {
             String json;
             if (childrenOnly) {
-                Map<String, EntryableContentMap> childNodes = new LinkedHashMap<String, EntryableContentMap>();
+                Collection<EntryableContentMap> childNodes = new LinkedList<EntryableContentMap>();
                 NodeIterator nodes = this.node.getNodes();
-                asNodeStream(nodes).map(this::cloneWith).forEach(builder -> childNodes.put(getName(builder.node), new EntryableContentMap(builder)));
+                asNodeStream(nodes).map(this::cloneWith).forEach(builder -> childNodes.add(new EntryableContentMap(builder)));
                 json = ow.writeValueAsString(childNodes);
             } else {
                 json = ow.writeValueAsString(new EntryableContentMap(this));

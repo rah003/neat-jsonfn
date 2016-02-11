@@ -36,19 +36,6 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import java.util.Arrays;
-
-import javax.jcr.Node;
-import javax.jcr.NodeIterator;
-import javax.jcr.Session;
-import javax.jcr.nodetype.NodeType;
-import javax.jcr.nodetype.NodeTypeManager;
-import javax.jcr.nodetype.NodeTypeTemplate;
-
-import org.apache.commons.io.IOUtils;
-import org.junit.Before;
-import org.junit.Test;
-
 import info.magnolia.cms.beans.config.URI2RepositoryManager;
 import info.magnolia.cms.i18n.I18nContentSupport;
 import info.magnolia.context.MgnlContext;
@@ -61,6 +48,19 @@ import info.magnolia.objectfactory.Components;
 import info.magnolia.repository.RepositoryManager;
 import info.magnolia.test.ComponentsTestUtil;
 import info.magnolia.test.RepositoryTestCase;
+
+import java.util.Arrays;
+
+import javax.jcr.Node;
+import javax.jcr.NodeIterator;
+import javax.jcr.Session;
+import javax.jcr.nodetype.NodeType;
+import javax.jcr.nodetype.NodeTypeManager;
+import javax.jcr.nodetype.NodeTypeTemplate;
+
+import org.apache.commons.io.IOUtils;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Just a test.
@@ -250,6 +250,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
         node.save();
         // WHEN
         String json = JsonTemplatingFunctions.from(node).expand("baz", "category").add("@id").print();
+        System.out.println(json);
         // THEN
         assertThat(json, startsWith("{"));
         // [{ == array of props ;)
@@ -311,14 +312,15 @@ public class JsonBuilderTest extends RepositoryTestCase {
             iter.nextNode().setProperty("baz", catNode.getIdentifier());
         }
         session.save();
-        String json = JsonTemplatingFunctions.fromChildNodesOf(node).expand("baz", "category").add("name").print();
-        assertThat(json, startsWith("{"));
+        String json = JsonTemplatingFunctions.fromChildNodesOf(node).expand("baz", "category").add("@name").add("name").print();
+        System.out.println(json);
+        assertThat(json, startsWith("["));
         assertThat(json, allOf(containsString("\"alias\""), containsString("\"alias2\""), containsString("\"alias3\""), containsString("\"alias4\""), containsString("\"alias5\""), containsString("\"alias6\"")));
         assertThat(json, not(containsString("\"" + node.getIdentifier() + "\"")));
         assertThat(json, not(containsString("\"jcr:created\" : ")));
         assertThat(json, containsString("\"baz\" : {"));
         assertThat(json, containsString("\"name\" : \"myCategory\""));
-        assertThat(json, endsWith("}"));
+        assertThat(json, endsWith("]"));
     }
 
     /**
@@ -341,7 +343,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
         String json = JsonTemplatingFunctions.fromChildNodesOf(node).expand("baz", "category").down(3).add("@name").print();
 
         // THEN
-        assertThat(json, startsWith("{"));
+        assertThat(json, startsWith("["));
         assertThat(json, allOf(containsString("\"alias\""), containsString("\"alias2\""), containsString("\"alias3\""), containsString("\"alias4\""), containsString("\"alias5\""), containsString("\"alias6\"")));
         assertThat(json, not(containsString("\"" + node.getIdentifier() + "\"")));
         assertThat(json, not(containsString("\"jcr:created\" : ")));
@@ -349,7 +351,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
         assertThat(json, containsString("\"@name\" : \"foo\""));
         assertThat(json, containsString("\"@name\" : \"level4\""));
         assertThat(json, not(containsString("\"@name\" : \"level5\"")));
-        assertThat(json, endsWith("}"));
+        assertThat(json, endsWith("]"));
     }
 
     /**

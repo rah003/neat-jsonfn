@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015 by Jan Haderka <jan.haderka@neatresults.com>
+ * Copyright 2015-2016 by Jan Haderka <jan.haderka@neatresults.com>
  *
  * This file is part of neat-tweaks module.
  *
@@ -88,6 +88,8 @@ public class JsonBuilder implements Cloneable {
     private String preexisingJson;
 
     private boolean inline;
+
+    private String allowedNodeTypes = "!^jcr:.*";
 
     protected JsonBuilder() {
     }
@@ -181,7 +183,7 @@ public class JsonBuilder implements Cloneable {
             if (childrenOnly) {
                 Collection<EntryableContentMap> childNodes = new LinkedList<EntryableContentMap>();
                 NodeIterator nodes = this.node.getNodes();
-                asNodeStream(nodes).map(this::cloneWith).forEach(builder -> childNodes.add(new EntryableContentMap(builder)));
+                asNodeStream(nodes).filter(this::isAllowedNodeType).map(this::cloneWith).forEach(builder -> childNodes.add(new EntryableContentMap(builder)));
                 json = ow.writeValueAsString(childNodes);
             } else {
                 json = ow.writeValueAsString(new EntryableContentMap(this));
@@ -200,6 +202,10 @@ public class JsonBuilder implements Cloneable {
         }
 
         return "{ }";
+    }
+
+    private boolean isAllowedNodeType(Node n) {
+        return n != null && n.getPrimaryNodeType().getName().matches(allowedNodeTypes);
     }
 
     private JsonBuilder cloneWith(Node n) {

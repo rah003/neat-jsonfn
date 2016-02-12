@@ -23,6 +23,10 @@ or maybe you want to work with all child nodes of given node instead:
 
 ```jsonfn.fromChildNodesOf(myNode) ```
 
+or maybe you want to work with all child nodes of given workspace (used by your content app) instead:
+
+```jsonfn.fromChildNodesOf(workspaceName) ```
+
 you can include all properties by calling (nothing is included by default)
 
 ```.addAll() ```
@@ -61,12 +65,19 @@ and to force output in single line rather than formatted (prettyprinter) json ar
 
 and to add output into existing json array:
 
-```appendFrom(existingJsonString, node) ```
+```.appendFrom(existingJsonString, node) ```
 
 and to respecting current locale also in the json produced from passed in node
 
-```wrapForI18n() ```
+```.wrapForI18n() ```
 
+and to exclude some node types (by default ```^(?!rep:).*$```) This function is not additive, all allowed types need to be written as one regex!!!
+
+```.allowOnlyNodeTypes(nodeTypeRegex) ```
+
+and to replace some chars in property names that are not always loved by js frameworks (e.g. did you try to order by property w/ colon (:) in name in angularjs? )
+
+```.maskChar(':','_') ```
 
 and last but not least, when you built your chain of operations, you execute on them by calling:
 
@@ -86,7 +97,7 @@ Maven dependency
     <dependency>
       <groupId>com.neatresults.mgnltweaks</groupId>
       <artifactId>neat-jsonfn</artifactId>
-      <version>1.0.2</version>
+      <version>1.0.3</version>
     </dependency>
 ```
 
@@ -94,7 +105,7 @@ Versions
 -----------------
 Version 1.0.x should be compatible with all Magnolia 5.x versions, but was tested only on 5.4.3 and not before. If you run into any issues w/ older versions, please report them back.
 
-Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-jsonfn/1.0.2/neat-jsonfn-1.0.2.jar
+Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-jsonfn/1.0.3/neat-jsonfn-1.0.3.jar
 
 Installation & updates 
 -----------------
@@ -105,11 +116,19 @@ Neat-JSONFN uses Jackson to produce json, so you will also need jackson-databind
 Module has also dependency on neat-tweaks-common jar version 2.0.3 or higher.
 
 On Magnolia 5.3.x together with neat-tweaks
-- use ```neat-tweaks-developers``` & ```neat-tweaks-editors``` jars of version 1.0.x and ```neat-tweaks-common``` jar of version 2.0.x to make it play nicely with this module. If you use maven, all deps should be resolved correctly automatically.
+- use ```neat-tweaks-developers``` & ```neat-tweaks-editors``` jars of version 1.0.x and ```neat-tweaks-common``` jar of version 2.0.x to make it play nicely with this module. If you use maven, all deps should be resolved correctly automatically. (Tested on 5.3.12)
 
 
 Changes
 -----------------
+1.0.3
+- #6 add support for substitution of characters in property names using ```.maskChar(':','_')```
+- #4 Allow filtering of included sub nodes by node types regex using ```.allowOnlyNodeTypes("regex")```
+- Overloaded ```fromChildNodesOf(String workspaceName)``` method to allow iterating over all content from content app easily
+- #5 make sure escapes are preserved where and as appropriate
+- when wrapping for i18n, wrap also expanded nodes
+
+
 1.0.2
 - added ```inline()``` function to skip pretty printing json
 - added ```appendFrom(existingJsonString, node)``` function to support building custom json arrays

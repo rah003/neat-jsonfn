@@ -473,4 +473,40 @@ public class JsonBuilderTest extends RepositoryTestCase {
         assertThat(json, endsWith("]"));
         assertThat(json, not(containsString("jcr:system")));
     }
+
+    /**
+     * jsonfn.from(content).add(".*").inline().print()
+     *
+     * ==> { "foo" : "that\\'s it", ... }
+     */
+    @Test
+    public void testPrintDoubleQuoted() throws Exception {
+        // GIVEN
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        Node node = session.getNode("/home/section2/article/mgnl:apex");
+        node.setProperty("escape", "that\"s it");
+        String json = JsonTemplatingFunctions.from(node).add("escape").inline().print();
+        System.out.println(json);
+        assertThat(json, startsWith("{"));
+        assertThat(json, containsString("\"escape\":\"that\\\\\"s it\""));
+        assertThat(json, endsWith("}"));
+    }
+
+    /**
+     * jsonfn.from(content).add(".*").inline().print()
+     *
+     * ==> { "foo" : "that\\'s it", ... }
+     */
+    @Test
+    public void testPrintQuoted() throws Exception {
+        // GIVEN
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        Node node = session.getNode("/home/section2/article/mgnl:apex");
+        node.setProperty("escape", "that\"s it");
+        String json = JsonTemplatingFunctions.from(node).add("escape").inline().print();
+        assertThat(json, startsWith("{"));
+        assertThat(json, containsString("\"escape\":\"that\\\\\"s it\""));
+        assertThat(json, endsWith("}"));
+    }
+
 }

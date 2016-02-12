@@ -45,6 +45,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -73,6 +74,7 @@ import com.neatresults.PredicateSplitterConsumer;
 public class JsonBuilder implements Cloneable {
 
     private static final Logger log = LoggerFactory.getLogger(JsonBuilder.class);
+    private static final Pattern ESCAPES = Pattern.compile("\\\\");
 
     private ObjectMapper mapper = new ObjectMapper();
     private Node node;
@@ -93,6 +95,7 @@ public class JsonBuilder implements Cloneable {
     private boolean wrapForI18n;
 
     private String allowedNodeTypes = "^(?!rep:).*$";
+
 
     protected JsonBuilder() {
     }
@@ -203,6 +206,7 @@ public class JsonBuilder implements Cloneable {
                     json = StringUtils.substringBeforeLast(preexisingJson, "]") + "," + json + "]";
                 }
             }
+            json = ESCAPES.matcher(json).replaceAll("\\\\\\\\");
             return json;
         } catch (JsonProcessingException | RepositoryException e) {
             // ignore

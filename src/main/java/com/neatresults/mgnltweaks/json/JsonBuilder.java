@@ -41,6 +41,7 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -95,6 +96,7 @@ public class JsonBuilder implements Cloneable {
     private boolean wrapForI18n;
 
     private String allowedNodeTypes = "^(?!rep:).*$";
+    private Map<Character, Character> masks = new LinkedHashMap<Character, Character>();
 
 
     protected JsonBuilder() {
@@ -157,6 +159,11 @@ public class JsonBuilder implements Cloneable {
 
     public JsonBuilder inline() {
         this.inline = true;
+        return this;
+    }
+
+    public JsonBuilder maskChar(char what, char replace) {
+        this.masks.put(what, replace);
         return this;
     }
 
@@ -303,18 +310,18 @@ public class JsonBuilder implements Cloneable {
                 // do not try to include binary data since we don't try to encode them either and jackson just blows w/o that
                 stream.filter(name -> PropertyUtil.getJCRPropertyType(PropertyUtil.getPropertyValueObject(node, name)) != PropertyType.BINARY)
                 .forEach(new PredicateSplitterConsumer<String>(config.expands::containsKey,
-                        expandableProperty -> props.put(expandableProperty, expand(expandableProperty, node)),
-                        flatProperty -> props.put(flatProperty, PropertyUtil.getPropertyValueObject(node, flatProperty))));
+                                expandableProperty -> props.put(maskChars(expandableProperty), expand(expandableProperty, node)),
+                                flatProperty -> props.put(maskChars(flatProperty), PropertyUtil.getPropertyValueObject(node, flatProperty))));
 
                 Stream<Entry<String, Method>> specialStream;
                 specialStream = specialProperties.entrySet().stream()
                         .filter(entry -> matchesRegex(entry.getKey(), config.butInclude))
                         .filter(entry -> !matchesRegex(entry.getKey(), config.regexExcludes));
-                specialStream.forEach(entry -> props.put(entry.getKey(), invoke(entry.getValue(), node)));
+                specialStream.forEach(entry -> props.put(maskChars(entry.getKey()), invoke(entry.getValue(), node)));
                 if (config.level > 0) {
                     asNodeStream(node.getNodes())
                     .map(config::cloneLevelDown)
-                    .forEach(builder -> props.put(getName(builder.node), new EntryableContentMap(builder)));
+                            .forEach(builder -> props.put(maskChars(getName(builder.node)), new EntryableContentMap(builder)));
                 }
 
                 if (node.getPrimaryNodeType().getName().equals("mgnl:asset")) {
@@ -325,6 +332,13 @@ public class JsonBuilder implements Cloneable {
                 e.printStackTrace();
             }
             return props.entrySet();
+        }
+
+        private String maskChars(String name) {
+            for (Entry<Character, Character> e : config.masks.entrySet()) {
+                name = name.replace(e.getKey(), e.getValue());
+            }
+            return name;
         }
 
         private Object generateRenditionLink(String rendition, Node node) {

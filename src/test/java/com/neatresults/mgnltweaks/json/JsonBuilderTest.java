@@ -486,7 +486,6 @@ public class JsonBuilderTest extends RepositoryTestCase {
         Node node = session.getNode("/home/section2/article/mgnl:apex");
         node.setProperty("escape", "that\"s it");
         String json = JsonTemplatingFunctions.from(node).add("escape").inline().print();
-        System.out.println(json);
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"escape\":\"that\\\\\"s it\""));
         assertThat(json, endsWith("}"));
@@ -525,4 +524,20 @@ public class JsonBuilderTest extends RepositoryTestCase {
         assertThat(json, endsWith("]"));
         assertThat(json, containsString("jcr:system"));
     }
+
+    /**
+     * Mask chars not friendly to your js framework in names of objects and properties jsonfn.from(content).add(".*").maskChars(":","_").print()
+     *
+     * ==> { "a" :"x", b: 1234, "b_r" : "property called b:r", ... }
+     */
+    @Test
+    public void testMaskChars() throws Exception {
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex")).add("mgnl:.*").add("@name").maskChar(':', '_').print();
+        assertThat(json, startsWith("{"));
+        assertThat(json, containsString("\"mgnl_created\" : "));
+        assertThat(json, not(containsString("\"mgnl:created\" : ")));
+        assertThat(json, endsWith("}"));
+    }
+
 }

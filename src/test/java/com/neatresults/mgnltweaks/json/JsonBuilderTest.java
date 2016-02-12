@@ -451,11 +451,26 @@ public class JsonBuilderTest extends RepositoryTestCase {
     public void testPrintInline() throws Exception {
         Session session = MgnlContext.getInstance().getJCRSession("website");
         String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex")).down(2).add("name").inline().print();
-        System.out.println(json);
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"name\":\"c\""));
         assertThat(json, endsWith("}"));
         assertThat(json, not(containsString("\n")));
     }
 
+    /**
+     * to output all stuff from root, jcr:xxx node types should be skipped:
+     *
+     * jsonfn.from(root).add(".*").print()
+     *
+     * ==> { "foo" : "hahaha", "a" :"x", b: 1234, "bar" : "meh", ... }
+     */
+    @Test
+    public void testExcludeSystemNodes() throws Exception {
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        String json = JsonTemplatingFunctions.fromChildNodesOf(session.getNode("/")).down(2).add("@name").inline().print();
+        assertThat(json, startsWith("["));
+        assertThat(json, containsString("\"@name\":\"home\""));
+        assertThat(json, endsWith("]"));
+        assertThat(json, not(containsString("jcr:system")));
+    }
 }

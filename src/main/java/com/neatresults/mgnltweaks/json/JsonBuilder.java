@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2015 by Jan Haderka <jan.haderka@neatresults.com>
+ * Copyright 2015-2016 by Jan Haderka <jan.haderka@neatresults.com>
  *
  * This file is part of neat-tweaks module.
  *
@@ -45,6 +45,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -90,6 +91,8 @@ public class JsonBuilder implements Cloneable {
     private boolean inline;
 
     private boolean wrapForI18n;
+
+    private String allowedNodeTypes = "^(?!rep:).*$";
 
     protected JsonBuilder() {
     }
@@ -187,7 +190,7 @@ public class JsonBuilder implements Cloneable {
             if (childrenOnly) {
                 Collection<EntryableContentMap> childNodes = new LinkedList<EntryableContentMap>();
                 NodeIterator nodes = this.node.getNodes();
-                asNodeStream(nodes).map(this::cloneWith).forEach(builder -> childNodes.add(new EntryableContentMap(builder)));
+                asNodeStream(nodes).filter(this::isAllowedNodeType).map(this::cloneWith).forEach(builder -> childNodes.add(new EntryableContentMap(builder)));
                 json = ow.writeValueAsString(childNodes);
             } else {
                 json = ow.writeValueAsString(new EntryableContentMap(this));
@@ -206,6 +209,20 @@ public class JsonBuilder implements Cloneable {
         }
 
         return "{ }";
+    }
+
+    private boolean isAllowedNodeType(Node n) {
+        try {
+            return n != null && n.getPrimaryNodeType().getName().matches(allowedNodeTypes);
+        } catch (RepositoryException e) {
+            // when failing to check because of the repo issue, assume node is fine.
+            log.error(e.getMessage(), e);
+            return true;
+        } catch (PatternSyntaxException e) {
+            // when failing due to broken pattern, leave result empty to alert dev to broken pattern.
+            log.error(e.getMessage(), e);
+            return false;
+        }
     }
 
     private JsonBuilder cloneWith(Node n) {

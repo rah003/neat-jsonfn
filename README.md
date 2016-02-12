@@ -55,6 +55,19 @@ and control how many levels down should printing node properties as json go (cur
 
 ```.down(int) ```
 
+and to force output in single line rather than formatted (prettyprinter) json array:
+
+```.inline() ```
+
+and to add output into existing json array:
+
+```appendFrom(existingJsonString, node) ```
+
+and to respecting current locale also in the json produced from passed in node
+
+```wrapForI18n() ```
+
+
 and last but not least, when you built your chain of operations, you execute on them by calling:
 
 ```.print() ```
@@ -73,7 +86,7 @@ Maven dependency
     <dependency>
       <groupId>com.neatresults.mgnltweaks</groupId>
       <artifactId>neat-jsonfn</artifactId>
-      <version>1.0.1</version>
+      <version>1.0.2</version>
     </dependency>
 ```
 
@@ -81,7 +94,7 @@ Versions
 -----------------
 Version 1.0.x should be compatible with all Magnolia 5.x versions, but was tested only on 5.4.3 and not before. If you run into any issues w/ older versions, please report them back.
 
-Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-jsonfn/1.0.1/neat-jsonfn-1.0.1.jar
+Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-jsonfn/1.0.2/neat-jsonfn-1.0.2.jar
 
 Installation & updates 
 -----------------
@@ -91,9 +104,18 @@ Neat-JSONFN uses Jackson to produce json, so you will also need jackson-databind
 
 Module has also dependency on neat-tweaks-common jar version 2.0.3 or higher.
 
+On Magnolia 5.3.x together with neat-tweaks
+- use ```neat-tweaks-developers``` & ```neat-tweaks-editors``` jars of version 1.0.x and ```neat-tweaks-common``` jar of version 2.0.x to make it play nicely with this module. If you use maven, all deps should be resolved correctly automatically.
+
 
 Changes
 -----------------
+1.0.2
+- added ```inline()``` function to skip pretty printing json
+- added ```appendFrom(existingJsonString, node)``` function to support building custom json arrays
+- changed output for collections from objects to real json arrays
+- added ```wrapForI18n()``` function to allow outputing json arrays from nodes while respecting current locale
+
 1.0.1
 - exclude binary properties to not corrupt produced json
 

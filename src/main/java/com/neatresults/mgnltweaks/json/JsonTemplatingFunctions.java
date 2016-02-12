@@ -25,9 +25,11 @@
  */
 package com.neatresults.mgnltweaks.json;
 
+import info.magnolia.context.MgnlContext;
 import info.magnolia.jcr.util.ContentMap;
 
 import javax.jcr.Node;
+import javax.jcr.RepositoryException;
 
 /**
  * Templating Functions to expose json builder.
@@ -51,6 +53,18 @@ public class JsonTemplatingFunctions {
         JsonBuilder foo = new JsonBuilder();
         foo.setNode(node);
         return foo;
+    }
+
+    /**
+     * Will skip root node of the workspace, but iterate over all children of it instead.
+     */
+    public static JsonBuilder fromChildNodesOf(String workspace) {
+        try {
+            return fromChildNodesOf(MgnlContext.getJCRSession(workspace).getRootNode());
+        } catch (RepositoryException e) {
+            // ignore
+            return null;
+        }
     }
 
     /**

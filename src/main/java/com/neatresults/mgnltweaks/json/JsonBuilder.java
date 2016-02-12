@@ -160,6 +160,11 @@ public class JsonBuilder implements Cloneable {
         return this;
     }
 
+    public JsonBuilder allowOnlyNodeTypes(String nodeTypesRegex) {
+        allowedNodeTypes = nodeTypesRegex;
+        return this;
+    }
+
     /**
      * Includes only specified properties. Use together with excludeAll().
      */

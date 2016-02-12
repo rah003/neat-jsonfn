@@ -509,4 +509,20 @@ public class JsonBuilderTest extends RepositoryTestCase {
         assertThat(json, endsWith("}"));
     }
 
+    /**
+     * to output all stuff from root, jcr:xxx node types should be skipped:
+     *
+     * jsonfn.from(root).add(".*").print()
+     *
+     * ==> { "foo" : "hahaha", "a" :"x", b: 1234, "bar" : "meh", ... }
+     */
+    @Test
+    public void testLimitByTypesOfNodes() throws Exception {
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        String json = JsonTemplatingFunctions.fromChildNodesOf(session.getNode("/")).down(2).allowOnlyNodeTypes("rep:system").add("@name").inline().print();
+        assertThat(json, startsWith("["));
+        assertThat(json, not(containsString("\"@name\":\"home\"")));
+        assertThat(json, endsWith("]"));
+        assertThat(json, containsString("jcr:system"));
+    }
 }

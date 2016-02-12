@@ -55,6 +55,19 @@ and control how many levels down should printing node properties as json go (cur
 
 ```.down(int) ```
 
+and to force output in single line rather than formatted (prettyprinter) json array:
+
+```.inline() ```
+
+and to add output into existing json array:
+
+```appendFrom(existingJsonString, node) ```
+
+and to respecting current locale also in the json produced from passed in node
+
+```wrapForI18n() ```
+
+
 and last but not least, when you built your chain of operations, you execute on them by calling:
 
 ```.print() ```

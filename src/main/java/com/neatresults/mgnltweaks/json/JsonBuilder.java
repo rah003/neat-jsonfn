@@ -32,6 +32,7 @@ import static com.neatresults.Java8Util.getName;
 import info.magnolia.context.MgnlContext;
 import info.magnolia.jcr.util.ContentMap;
 import info.magnolia.jcr.util.PropertyUtil;
+import info.magnolia.jcr.wrapper.I18nNodeWrapper;
 import info.magnolia.link.LinkUtil;
 import info.magnolia.objectfactory.Components;
 
@@ -73,7 +74,6 @@ public class JsonBuilder implements Cloneable {
     private static final Logger log = LoggerFactory.getLogger(JsonBuilder.class);
 
     private ObjectMapper mapper = new ObjectMapper();
-    private ObjectWriter ow = mapper.writer().withDefaultPrettyPrinter();
     private Node node;
     private List<String> regexExcludes = new LinkedList<String>();
     private List<String> butInclude = new LinkedList<String>();
@@ -86,6 +86,8 @@ public class JsonBuilder implements Cloneable {
     private LinkedList<String> renditions = new LinkedList<String>();
 
     private String preexisingJson;
+
+    private boolean inline;
 
     protected JsonBuilder() {
     }
@@ -140,6 +142,16 @@ public class JsonBuilder implements Cloneable {
         return this;
     }
 
+    public JsonBuilder wrapForI18n() {
+        node = new I18nNodeWrapper(node);
+        return this;
+    }
+
+    public JsonBuilder inline() {
+        this.inline = true;
+        return this;
+    }
+
     /**
      * Includes only specified properties. Use together with excludeAll().
      */
@@ -160,6 +172,10 @@ public class JsonBuilder implements Cloneable {
      * Executes configured chain of operations and produces the json output.
      */
     public String print() {
+        ObjectWriter ow = mapper.writer();
+        if (!inline) {
+            ow = ow.withDefaultPrettyPrinter();
+        }
         try {
             String json;
             if (childrenOnly) {

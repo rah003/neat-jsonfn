@@ -440,4 +440,22 @@ public class JsonBuilderTest extends RepositoryTestCase {
         assertThat(json, endsWith("]"));
     }
 
+    /**
+     * to output all in single line:
+     *
+     * jsonfn.from(content).add(".*").inline().print()
+     *
+     * ==> { "foo" : "hahaha", "a" :"x", b: 1234, "bar" : "meh", ... }
+     */
+    @Test
+    public void testPrintInline() throws Exception {
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex")).down(2).add("name").inline().print();
+        System.out.println(json);
+        assertThat(json, startsWith("{"));
+        assertThat(json, containsString("\"name\":\"c\""));
+        assertThat(json, endsWith("}"));
+        assertThat(json, not(containsString("\n")));
+    }
+
 }

@@ -89,6 +89,8 @@ public class JsonBuilder implements Cloneable {
 
     private boolean inline;
 
+    private boolean wrapForI18n;
+
     protected JsonBuilder() {
     }
 
@@ -143,7 +145,7 @@ public class JsonBuilder implements Cloneable {
     }
 
     public JsonBuilder wrapForI18n() {
-        node = new I18nNodeWrapper(node);
+        this.wrapForI18n = true;
         return this;
     }
 
@@ -175,6 +177,10 @@ public class JsonBuilder implements Cloneable {
         ObjectWriter ow = mapper.writer();
         if (!inline) {
             ow = ow.withDefaultPrettyPrinter();
+        }
+
+        if (wrapForI18n) {
+            node = new I18nNodeWrapper(node);
         }
         try {
             String json;
@@ -375,6 +381,9 @@ public class JsonBuilder implements Cloneable {
                     expandedNode = session.getNodeByIdentifier(expandable);
                 }
                 JsonBuilder builder = config.clone();
+                if (builder.wrapForI18n) {
+                    expandedNode = new I18nNodeWrapper(expandedNode);
+                }
                 builder.setNode(expandedNode);
                 return new EntryableContentMap(builder);
             } catch (RepositoryException e) {

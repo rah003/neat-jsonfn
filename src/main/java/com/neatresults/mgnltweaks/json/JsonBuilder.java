@@ -212,10 +212,11 @@ public class JsonBuilder implements Cloneable {
             }
 
             if (StringUtils.isNotEmpty(preexisingJson)) {
-                if (preexisingJson.trim().endsWith("}")) {
+                String trimmedJson = preexisingJson.trim();
+                if (trimmedJson.endsWith("}")) {
                     json = "[" + preexisingJson + "," + json + "]";
-                } else if (preexisingJson.trim().endsWith("]")) {
-                    json = StringUtils.substringBeforeLast(preexisingJson, "]") + "," + json + "]";
+                } else if (trimmedJson.endsWith("]")) {
+                    json = StringUtils.substringBeforeLast(preexisingJson, "]") + (trimmedJson.equals("[]") ? "" : ",") + json + "]";
                 }
             }
             json = ESCAPES.matcher(json).replaceAll("\\\\\\\\");
@@ -310,8 +311,8 @@ public class JsonBuilder implements Cloneable {
                 // do not try to include binary data since we don't try to encode them either and jackson just blows w/o that
                 stream.filter(name -> PropertyUtil.getJCRPropertyType(PropertyUtil.getPropertyValueObject(node, name)) != PropertyType.BINARY)
                 .forEach(new PredicateSplitterConsumer<String>(config.expands::containsKey,
-                                expandableProperty -> props.put(maskChars(expandableProperty), expand(expandableProperty, node)),
-                                flatProperty -> props.put(maskChars(flatProperty), PropertyUtil.getPropertyValueObject(node, flatProperty))));
+                        expandableProperty -> props.put(maskChars(expandableProperty), expand(expandableProperty, node)),
+                        flatProperty -> props.put(maskChars(flatProperty), PropertyUtil.getPropertyValueObject(node, flatProperty))));
 
                 Stream<Entry<String, Method>> specialStream;
                 specialStream = specialProperties.entrySet().stream()
@@ -321,7 +322,7 @@ public class JsonBuilder implements Cloneable {
                 if (config.level > 0) {
                     asNodeStream(node.getNodes())
                     .map(config::cloneLevelDown)
-                            .forEach(builder -> props.put(maskChars(getName(builder.node)), new EntryableContentMap(builder)));
+                    .forEach(builder -> props.put(maskChars(getName(builder.node)), new EntryableContentMap(builder)));
                 }
 
                 if (node.getPrimaryNodeType().getName().equals("mgnl:asset")) {

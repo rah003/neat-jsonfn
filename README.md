@@ -27,6 +27,10 @@ or maybe you want to work with all child nodes of given workspace (used by your 
 
 ```jsonfn.fromChildNodesOf(workspaceName) ```
 
+or to add output into existing json (eg. array. Tip: to start w/ empty array, just pass in "[]"):
+
+```.appendFrom(existingJsonString, node) ```
+
 you can include all properties by calling (nothing is included by default)
 
 ```.addAll() ```
@@ -63,9 +67,6 @@ and to force output in single line rather than formatted (prettyprinter) json ar
 
 ```.inline() ```
 
-and to add output into existing json array:
-
-```.appendFrom(existingJsonString, node) ```
 
 and to respecting current locale also in the json produced from passed in node
 
@@ -97,7 +98,7 @@ Maven dependency
     <dependency>
       <groupId>com.neatresults.mgnltweaks</groupId>
       <artifactId>neat-jsonfn</artifactId>
-      <version>1.0.3</version>
+      <version>1.0.4</version>
     </dependency>
 ```
 
@@ -105,7 +106,7 @@ Versions
 -----------------
 Version 1.0.x should be compatible with all Magnolia 5.x versions, but was tested only on 5.4.3 and not before. If you run into any issues w/ older versions, please report them back.
 
-Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-jsonfn/1.0.3/neat-jsonfn-1.0.3.jar
+Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-jsonfn/1.0.4/neat-jsonfn-1.0.4.jar
 
 Installation & updates 
 -----------------
@@ -121,13 +122,15 @@ On Magnolia 5.3.x together with neat-tweaks
 
 Changes
 -----------------
+1.0.4
+- fixed errorneous comma added when appending to empty array in ```appendFrom()``` 
+
 1.0.3
 - #6 add support for substitution of characters in property names using ```.maskChar(':','_')```
 - #4 Allow filtering of included sub nodes by node types regex using ```.allowOnlyNodeTypes("regex")```
 - Overloaded ```fromChildNodesOf(String workspaceName)``` method to allow iterating over all content from content app easily
 - #5 make sure escapes are preserved where and as appropriate
 - when wrapping for i18n, wrap also expanded nodes
-
 
 1.0.2
 - added ```inline()``` function to skip pretty printing json

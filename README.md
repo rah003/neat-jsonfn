@@ -57,7 +57,7 @@ and most importantly you can also expand any property you want, by providing nam
 
 you can also tell function to include links for renditions of binaries by calling:
 
-```.binaryLinkRenditions("rendition1", "rendition2", ...) ```
+```.binaryLinkRendition("rendition1", "rendition2", ...) ```
 
 and control how many levels down should printing node properties as json go (current level only by default):
 

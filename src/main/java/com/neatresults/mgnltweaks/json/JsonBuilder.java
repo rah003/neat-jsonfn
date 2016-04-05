@@ -38,6 +38,7 @@ import info.magnolia.objectfactory.Components;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -101,7 +102,8 @@ public class JsonBuilder implements Cloneable {
 
     private String allowOnlyNodeTypes = ".*";
 
-    private Map<Character, Character> masks = new LinkedHashMap<Character, Character>();
+    private Map<Character, Character> masks = new LinkedHashMap<>();
+    private Map<String, List<String>> subNodeSpecificProperties = new LinkedHashMap<>();
 
 
 
@@ -187,8 +189,22 @@ public class JsonBuilder implements Cloneable {
      * Includes only specified properties. Use together with excludeAll().
      */
     public JsonBuilder add(String... string) {
-        this.butInclude.addAll(Arrays.asList(string));
+        Arrays.asList(string).stream()
+        .filter(it -> it.contains("['") && it.contains("']"))
+        .map(it -> it.split("\\['"))
+        .forEach(subpropertyArray -> addToSubPropertyMap(subpropertyArray[0], StringUtils.substringBefore(subpropertyArray[1], "']")));
+
+        List<String> list = new ArrayList<>();
+        Arrays.asList(string).stream().filter(it -> !it.contains("['")).forEach(list::add);
+        this.butInclude.addAll(list);
         return this;
+    }
+
+    private void addToSubPropertyMap(String parentNodeName, String propertyName) {
+        if (!subNodeSpecificProperties.containsKey(parentNodeName)) {
+            subNodeSpecificProperties.put(parentNodeName, new ArrayList<String>());
+        }
+        subNodeSpecificProperties.get(parentNodeName).add(propertyName);
     }
 
     /**
@@ -404,9 +420,14 @@ public class JsonBuilder implements Cloneable {
                 if (node.getPrimaryNodeType().getName().matches(config.allowOnlyNodeTypes)) {
                     properties = node.getProperties();
                     Stream<String> stream;
+                    List<String> includes = new LinkedList<>();
+                    includes.addAll(config.butInclude);
+                    if (config.subNodeSpecificProperties.containsKey(node.getName())) {
+                        includes.addAll(config.subNodeSpecificProperties.get(node.getName()));
+                    }
                     stream = asPropertyStream(properties)
                             .map(prop -> getName(prop))
-                            .filter(name -> matchesRegex(name, config.butInclude))
+                            .filter(name -> matchesRegex(name, includes))
                             .filter(name -> !matchesRegex(name, config.regexExcludes));
 
                     // do not try to include binary data since we don't try to encode them either and jackson just blows w/o that
@@ -417,7 +438,7 @@ public class JsonBuilder implements Cloneable {
 
                     Stream<Entry<String, Method>> specialStream;
                     specialStream = specialProperties.entrySet().stream()
-                            .filter(entry -> matchesRegex(entry.getKey(), config.butInclude))
+                            .filter(entry -> matchesRegex(entry.getKey(), includes))
                             .filter(entry -> !matchesRegex(entry.getKey(), config.regexExcludes));
                     specialStream.forEach(entry -> props.put(maskChars(entry.getKey()), invoke(entry.getValue(), node)));
                     if (node.getPrimaryNodeType().getName().equals("mgnl:asset")) {
@@ -509,16 +530,17 @@ public class JsonBuilder implements Cloneable {
         private Object expand(String expandableProperty, Node node) {
             Map<String, Object> expanded = new HashMap<String, Object>();
             final String workspace = config.expands.get(expandableProperty);
+            List<String> expandedNodeOnlyPropertyNames = config.subNodeSpecificProperties.get(expandableProperty);
             try {
                 Property property = node.getProperty(expandableProperty);
                 if (property.isMultiple()) {
                     List<String> expandables = PropertyUtil.getValuesStringList(property.getValues());
                     return expandables.stream()
-                            .map(expandable -> expandSingle(expandable, workspace))
+                            .map(expandable -> expandSingle(expandable, workspace, expandedNodeOnlyPropertyNames))
                             .collect(Collectors.toList());
                 } else {
                     String expandable = PropertyUtil.getValueString(property);
-                    return expandSingle(expandable, workspace);
+                    return expandSingle(expandable, workspace, expandedNodeOnlyPropertyNames);
                 }
 
             } catch (RepositoryException e) {
@@ -528,7 +550,7 @@ public class JsonBuilder implements Cloneable {
             return expanded;
         }
 
-        private EntryableContentMap expandSingle(String expandable, String workspace) {
+        private EntryableContentMap expandSingle(String expandable, String workspace, List<String> expandedNodeOnlyPropertyNames) {
             if (expandable == null) {
                 return null;
             }
@@ -544,6 +566,9 @@ public class JsonBuilder implements Cloneable {
                     expandedNode = session.getNodeByIdentifier(expandable);
                 }
                 JsonBuilder builder = config.clone();
+                if (expandedNodeOnlyPropertyNames != null) {
+                    builder.add(expandedNodeOnlyPropertyNames.toArray(new String[] {}));
+                }
                 if (builder.wrapForI18n) {
                     expandedNode = new I18nNodeWrapper(expandedNode);
                 }

@@ -636,6 +636,44 @@ public class JsonBuilderTest extends RepositoryTestCase {
     }
 
     /**
+     * Lists specified properties only for sub nodes but not for the parent nodes.
+     *
+     */
+    @Test
+    public void testSubNodePropertyListing() throws Exception {
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        // WHEN
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article")).down(1).add("mgnl:.*").add("mgnl:apex['@name']").maskChar(':', '_').print();
+        // THEN
+        assertThat(json, startsWith("{"));
+        assertThat(json, containsString("\"mgnl_created\" : "));
+        assertThat(json, not(containsString("\"@name\" : \"article\"")));
+        assertThat(json, containsString("\"@name\" : \"mgnl:apex\""));
+        assertThat(json, not(containsString("\"mgnl:created\" : ")));
+        assertThat(json, endsWith("}"));
+    }
+
+    /**
+     * Lists specified properties only for expanded nodes but not for the parent nodes.
+     */
+    @Test
+    public void testExpandedNodePropertyListing() throws Exception {
+        Node node = session.getNode("/home/section2/article/mgnl:apex");
+        node.setProperty("baz", catNode.getIdentifier());
+        node.save();
+        // WHEN
+        String json = JsonTemplatingFunctions.from(node).expand("baz", "category").add("name").add("baz['@name']").print();
+        // THEN
+        assertThat(json, startsWith("{"));
+        assertThat(json, not(containsString("\"jcr:created\" : ")));
+        assertThat(json, not(containsString("\"@name\" : \"mgnl:apex\"")));
+        assertThat(json, containsString("\"baz\" : {"));
+        assertThat(json, containsString("\"@name\" : \"foo\""));
+        assertThat(json, containsString("\"name\" : \"myCategory\""));
+        assertThat(json, endsWith("}"));
+    }
+
+    /**
      * Test performance.
      */
     @Test

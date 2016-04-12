@@ -82,15 +82,16 @@ public class JsonBuilder implements Cloneable {
 
     private ObjectMapper mapper = new ObjectMapper();
     private Node node;
-    private List<String> regexExcludes = new LinkedList<String>();
-    private List<String> butInclude = new LinkedList<String>();
-    private Map<String, String> expands = new HashMap<String, String>();
+    private String referencingPropertyName;
+    private List<String> regexExcludes = new LinkedList<>();
+    private List<String> butInclude = new LinkedList<>();
+    private Map<String, String> expands = new HashMap<>();
 
     private boolean childrenOnly;
 
     private int totalDepth = 0;
 
-    private LinkedList<String> renditions = new LinkedList<String>();
+    private LinkedList<String> renditions = new LinkedList<>();
 
     private String preexisingJson;
 
@@ -112,6 +113,10 @@ public class JsonBuilder implements Cloneable {
 
     protected void setNode(Node node) {
         this.node = node;
+    }
+
+    protected void setReferencingPropertyName(String name) {
+        this.referencingPropertyName = name;
     }
 
     protected void setChildrenOnly(boolean childrenOnly) {
@@ -341,7 +346,13 @@ public class JsonBuilder implements Cloneable {
     @Override
     protected JsonBuilder clone() {
         try {
-            return (JsonBuilder) super.clone();
+            JsonBuilder clone = (JsonBuilder) super.clone();
+            clone.butInclude = new LinkedList<>(clone.butInclude);
+            clone.expands = new HashMap<>(clone.expands);
+            clone.masks = new LinkedHashMap<>(clone.masks);
+            clone.subNodeSpecificProperties = new LinkedHashMap<>(clone.subNodeSpecificProperties);
+            clone.referencingPropertyName = null;
+            return clone;
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException(e);
         }
@@ -424,6 +435,9 @@ public class JsonBuilder implements Cloneable {
                     includes.addAll(config.butInclude);
                     if (config.subNodeSpecificProperties.containsKey(node.getName())) {
                         includes.addAll(config.subNodeSpecificProperties.get(node.getName()));
+                    }
+                    if (config.subNodeSpecificProperties.containsKey(config.referencingPropertyName)) {
+                        includes.addAll(config.subNodeSpecificProperties.get(config.referencingPropertyName));
                     }
                     stream = asPropertyStream(properties)
                             .map(prop -> getName(prop))
@@ -530,17 +544,16 @@ public class JsonBuilder implements Cloneable {
         private Object expand(String expandableProperty, Node node) {
             Map<String, Object> expanded = new HashMap<String, Object>();
             final String workspace = config.expands.get(expandableProperty);
-            List<String> expandedNodeOnlyPropertyNames = config.subNodeSpecificProperties.get(expandableProperty);
             try {
                 Property property = node.getProperty(expandableProperty);
                 if (property.isMultiple()) {
                     List<String> expandables = PropertyUtil.getValuesStringList(property.getValues());
                     return expandables.stream()
-                            .map(expandable -> expandSingle(expandable, workspace, expandedNodeOnlyPropertyNames))
+                            .map(expandable -> expandSingle(expandable, workspace, expandableProperty))
                             .collect(Collectors.toList());
                 } else {
                     String expandable = PropertyUtil.getValueString(property);
-                    return expandSingle(expandable, workspace, expandedNodeOnlyPropertyNames);
+                    return expandSingle(expandable, workspace, expandableProperty);
                 }
 
             } catch (RepositoryException e) {
@@ -550,7 +563,7 @@ public class JsonBuilder implements Cloneable {
             return expanded;
         }
 
-        private EntryableContentMap expandSingle(String expandable, String workspace, List<String> expandedNodeOnlyPropertyNames) {
+        private EntryableContentMap expandSingle(String expandable, String workspace, String expandableProperty) {
             if (expandable == null) {
                 return null;
             }
@@ -566,13 +579,11 @@ public class JsonBuilder implements Cloneable {
                     expandedNode = session.getNodeByIdentifier(expandable);
                 }
                 JsonBuilder builder = config.clone();
-                if (expandedNodeOnlyPropertyNames != null) {
-                    builder.add(expandedNodeOnlyPropertyNames.toArray(new String[] {}));
-                }
                 if (builder.wrapForI18n) {
                     expandedNode = new I18nNodeWrapper(expandedNode);
                 }
                 builder.setNode(expandedNode);
+                builder.setReferencingPropertyName(expandableProperty);
                 return new EntryableContentMap(builder);
             } catch (RepositoryException e) {
                 log.debug(e.getMessage(), e);

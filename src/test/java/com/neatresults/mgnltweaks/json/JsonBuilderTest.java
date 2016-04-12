@@ -154,6 +154,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
         nodeTypeManager.registerNodeType(type, true);
 
         catNode = catSession.getRootNode().addNode("foo", "category");
+        catNode.addNode("foobar", "mgnl:content");
         catNode.setProperty("name", "myCategory");
         catSession.save();
         MgnlContext.setLocale(null);
@@ -660,13 +661,15 @@ public class JsonBuilderTest extends RepositoryTestCase {
     public void testExpandedNodePropertyListing() throws Exception {
         Node node = session.getNode("/home/section2/article/mgnl:apex");
         node.setProperty("baz", catNode.getIdentifier());
+        node.addNode("blah", "mgnl:content");
         node.save();
         // WHEN
-        String json = JsonTemplatingFunctions.from(node).expand("baz", "category").add("name").add("baz['@name']").print();
+        String json = JsonTemplatingFunctions.from(node).expand("baz", "category").add("name").add("baz['@name']").down(2).print();
         // THEN
         assertThat(json, startsWith("{"));
         assertThat(json, not(containsString("\"jcr:created\" : ")));
         assertThat(json, not(containsString("\"@name\" : \"mgnl:apex\"")));
+        assertThat(json, not(containsString("\"@name\" : \"blah\"")));
         assertThat(json, containsString("\"baz\" : {"));
         assertThat(json, containsString("\"@name\" : \"foo\""));
         assertThat(json, containsString("\"name\" : \"myCategory\""));
@@ -719,4 +722,5 @@ public class JsonBuilderTest extends RepositoryTestCase {
                     .inline().print();
         }
     }
+
 }

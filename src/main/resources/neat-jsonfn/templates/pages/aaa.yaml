@@ -1,0 +1,4 @@
+title: jsonfn example 1
+renderType: freemarker
+visible: true
+templateScript: /neat-jsonfn/templates/pages/aaa.ftl

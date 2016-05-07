@@ -530,10 +530,31 @@ public class JsonBuilderTest extends RepositoryTestCase {
         Node node = session.getNode("/home/section2/article/mgnl:apex");
         node.setProperty("escape", "that\"s it");
         // WHEN
-        String json = JsonTemplatingFunctions.from(node).add("escape").inline().print();
+        String json = JsonTemplatingFunctions.from(node).add("escape").inline().escapeBackslash().print();
         // THEN
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"escape\":\"that\\\\\"s it\""));
+        assertThat(json, endsWith("}"));
+    }
+
+    /**
+     * jsonfn.from(content).add(".*").inline().print()
+     *
+     * ==> { "foo" : "that\\'s it", ... }
+     */
+    @Test
+    public void testPrintDoubleQuoted2() throws Exception {
+        // GIVEN
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        Node node = session.getNode("/home/section2/article/mgnl:apex");
+        node.setProperty("description",
+                "<p><span style=\"line-height:1.6em\">l&auml;ngsten produzierten Profikameras &uuml;berhaupt.</span></p><p><span style=\"line-height:1.6em\">Mit der F3 !</span></p>");
+        // WHEN
+        String json = JsonTemplatingFunctions.from(node).add("description").inline().print();
+        // THEN
+        assertThat(json, startsWith("{"));
+        assertThat(json, containsString(
+                "\"description\":\"<p><span style=\\\"line-height:1.6em\\\">l&auml;ngsten produzierten Profikameras &uuml;berhaupt.</span></p><p><span style=\\\"line-height:1.6em\\\">Mit der F3 !</span></p>\""));
         assertThat(json, endsWith("}"));
     }
 
@@ -549,7 +570,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
         Node node = session.getNode("/home/section2/article/mgnl:apex");
         node.setProperty("escape", "that\"s it");
         // WHEN
-        String json = JsonTemplatingFunctions.from(node).add("escape").inline().print();
+        String json = JsonTemplatingFunctions.from(node).add("escape").inline().escapeBackslash().print();
         // THEN
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"escape\":\"that\\\\\"s it\""));

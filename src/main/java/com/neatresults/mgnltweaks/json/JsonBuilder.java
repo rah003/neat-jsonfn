@@ -105,6 +105,7 @@ public class JsonBuilder implements Cloneable {
 
     private Map<Character, Character> masks = new LinkedHashMap<>();
     private Map<String, List<String>> subNodeSpecificProperties = new LinkedHashMap<>();
+    private boolean escapeBackslash = false;
 
 
 
@@ -177,6 +178,11 @@ public class JsonBuilder implements Cloneable {
 
     public JsonBuilder maskChar(char what, char replace) {
         this.masks.put(what, replace);
+        return this;
+    }
+
+    public JsonBuilder escapeBackslash() {
+        this.escapeBackslash = true;
         return this;
     }
 
@@ -273,7 +279,9 @@ public class JsonBuilder implements Cloneable {
                     json = StringUtils.substringBeforeLast(preexisingJson, "]") + (trimmedJson.equals("[]") ? "" : ",") + json + "]";
                 }
             }
-            json = ESCAPES.matcher(json).replaceAll("\\\\\\\\");
+            if (escapeBackslash) {
+                json = ESCAPES.matcher(json).replaceAll("\\\\\\\\");
+            }
             return json;
         } catch (JsonProcessingException | RepositoryException e) {
             // ignore

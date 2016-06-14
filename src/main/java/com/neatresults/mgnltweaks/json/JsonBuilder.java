@@ -25,17 +25,29 @@
  */
 package com.neatresults.mgnltweaks.json;
 
-import static com.neatresults.Java8Util.asNodeStream;
-import static com.neatresults.Java8Util.asPropertyStream;
-import static com.neatresults.Java8Util.getName;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.neatresults.Java8Util;
+import com.neatresults.PredicateSplitterConsumer;
 import info.magnolia.context.MgnlContext;
 import info.magnolia.jcr.util.ContentMap;
 import info.magnolia.jcr.util.PropertyUtil;
 import info.magnolia.jcr.wrapper.I18nNodeWrapper;
 import info.magnolia.link.LinkUtil;
 import info.magnolia.objectfactory.Components;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.jcr.Node;
+import javax.jcr.NodeIterator;
+import javax.jcr.Property;
+import javax.jcr.PropertyIterator;
+import javax.jcr.PropertyType;
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.nodetype.NodeType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -48,31 +60,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.jcr.Node;
-import javax.jcr.NodeIterator;
-import javax.jcr.Property;
-import javax.jcr.PropertyIterator;
-import javax.jcr.PropertyType;
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.jcr.nodetype.NodeType;
-
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.neatresults.Java8Util;
-import com.neatresults.PredicateSplitterConsumer;
+import static com.neatresults.Java8Util.*;
 
 /**
  * Builder class for converting JCR nodes into json ... with few little extras :D .
@@ -291,7 +284,7 @@ public class JsonBuilder implements Cloneable {
             }
             return json;
         } catch (JsonProcessingException | RepositoryException e) {
-			log.error("Failed to generate JSON string", e);
+            log.error("Failed to generate JSON string", e);
         }
 
         return "{ }";
@@ -437,19 +430,19 @@ public class JsonBuilder implements Cloneable {
             this.deletedKeys.add(key);
             return obj;
         }
+        
+        @Override
+        public Object get(Object key) {
+            Object superResult = super.get(key);
+            if (!(superResult instanceof ContentMap))
+                return superResult;
 
-		@Override
-		public Object get(Object key) {
-			Object superResult = super.get(key);
-			if (!(superResult instanceof ContentMap))
-				return superResult;
-
-			Node node = ((ContentMap) superResult).getJCRNode();
-			if (isArrayParent(node))
+            Node node = ((ContentMap) superResult).getJCRNode();
+            if (isArrayParent(node))
                 return childrenAsContentMapList(node);
 
             return superResult;
-		}
+        }
 
         private boolean isArrayParent(Node candidate) {
             for (String key : config.childrenArrayCandidates.keySet()) {
@@ -459,15 +452,15 @@ public class JsonBuilder implements Cloneable {
 
                 try {
                     if (!asPropertyStream(candidate.getProperties()).filter(
-							p -> {
-								try {
-									return keyPattern.matcher(p.getName()).matches()
-											&& valuePattern.matcher(p.getString()).matches();
-								} catch (RepositoryException e) {
-									throw new RuntimeException(e);
-								}
-							}).collect(Collectors.toList()).isEmpty())
-						return true;
+                            p -> {
+                                try {
+                                    return keyPattern.matcher(p.getName()).matches()
+                                            && valuePattern.matcher(p.getString()).matches();
+                                } catch (RepositoryException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }).collect(Collectors.toList()).isEmpty())
+                        return true;
                 } catch (RepositoryException e) {
                     throw new RuntimeException(e);
                 }
@@ -484,11 +477,11 @@ public class JsonBuilder implements Cloneable {
 
         private Object childrenAsContentMapList(Node node) {
             try {
-				return asNodeStream(node.getNodes()).map(n -> new EntryableContentMap(config.cloneWith(n)))
+                return asNodeStream(node.getNodes()).map(n -> new EntryableContentMap(config.cloneWith(n)))
                         .collect(Collectors.toList());
-			} catch (RepositoryException e) {
-				throw new RuntimeException(e);
-			}
+            } catch (RepositoryException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         private void populateProperties(Map<String, Object> props) {

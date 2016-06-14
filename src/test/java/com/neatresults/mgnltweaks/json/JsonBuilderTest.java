@@ -53,7 +53,6 @@ import java.util.Arrays;
 
 import javax.jcr.Node;
 import javax.jcr.NodeIterator;
-import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.nodetype.NodeType;
 import javax.jcr.nodetype.NodeTypeManager;
@@ -708,7 +707,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
 
         String noArray = JsonTemplatingFunctions.from(node).add("name").down(2).print();
         String noArrayByRegex = JsonTemplatingFunctions.from(node).add("name").childrenAsArray(".*test.*", ".*whatever.*").down(2).print();
-        String withArray = JsonTemplatingFunctions.from(node).add("name").childrenAsArray("foo", "bar").down(2).print();
+        String withArray = JsonTemplatingFunctions.from(node).add("name").childrenAsArray("foo", "bar").down(3).print();
         String withArrayByValueRegex = JsonTemplatingFunctions.from(node).add("name").childrenAsArray("@name", "multi.*").down(2).print();
         String withArrayByNameRegex = JsonTemplatingFunctions.from(node).add("name").childrenAsArray(".*oo.*", "bar").down(2).print();
 
@@ -722,6 +721,15 @@ public class JsonBuilderTest extends RepositoryTestCase {
         assertTrue(withArrayByValueRegex.contains("]"));
         assertTrue(withArrayByNameRegex.contains("["));
         assertTrue(withArrayByNameRegex.contains("]"));
+
+        assertEquals("{\n"
+                + "  \"mgnl:apex\" : {\n"
+                + "    \"alias\" : {\n"
+                + "      \"name\" : \"c\"\n"
+                + "    }\n"
+                + "  },\n"
+                + "  \"multiParent\" : [ { }, { }, { } ]\n"
+                + "}", withArray);
     }
 
     /**

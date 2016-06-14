@@ -13,7 +13,7 @@
   <name>neat-jsonfn Magnolia Module</name>
 
   <properties>
-    <magnoliaVersion>5.4.6-SNAPSHOT</magnoliaVersion>
+    <magnoliaVersion>5.4.6</magnoliaVersion>
     <javaVersion>1.8</javaVersion>
   </properties>
 

@@ -30,9 +30,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.startsWith;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -55,6 +53,7 @@ import java.util.Arrays;
 
 import javax.jcr.Node;
 import javax.jcr.NodeIterator;
+import javax.jcr.RepositoryException;
 import javax.jcr.Session;
 import javax.jcr.nodetype.NodeType;
 import javax.jcr.nodetype.NodeTypeManager;
@@ -695,6 +694,34 @@ public class JsonBuilderTest extends RepositoryTestCase {
         assertThat(json, containsString("\"@name\" : \"foo\""));
         assertThat(json, containsString("\"name\" : \"myCategory\""));
         assertThat(json, endsWith("}"));
+    }
+
+    @Test
+    public void testChildrenAsArray() throws Exception {
+        Node node = session.getNode("/home/section2/article");
+        Node multiParent = node.addNode("multiParent", "mgnl:content");
+        multiParent.setProperty("foo", "bar");
+        multiParent.addNode("testA", "mgnl:content");
+        multiParent.addNode("testB", "mgnl:content");
+        multiParent.addNode("testC", "mgnl:content");
+        session.save();
+
+        String noArray = JsonTemplatingFunctions.from(node).add("name").down(2).print();
+        String noArrayByRegex = JsonTemplatingFunctions.from(node).add("name").childrenAsArray(".*test.*", ".*whatever.*").down(2).print();
+        String withArray = JsonTemplatingFunctions.from(node).add("name").childrenAsArray("foo", "bar").down(2).print();
+        String withArrayByValueRegex = JsonTemplatingFunctions.from(node).add("name").childrenAsArray("@name", "multi.*").down(2).print();
+        String withArrayByNameRegex = JsonTemplatingFunctions.from(node).add("name").childrenAsArray(".*oo.*", "bar").down(2).print();
+
+        assertFalse(noArray.contains("["));
+        assertFalse(noArray.contains("]"));
+        assertFalse(noArrayByRegex.contains("["));
+        assertFalse(noArrayByRegex.contains("]"));
+        assertTrue(withArray.contains("["));
+        assertTrue(withArray.contains("]"));
+        assertTrue(withArrayByValueRegex.contains("["));
+        assertTrue(withArrayByValueRegex.contains("]"));
+        assertTrue(withArrayByNameRegex.contains("["));
+        assertTrue(withArrayByNameRegex.contains("]"));
     }
 
     /**

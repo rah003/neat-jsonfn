@@ -283,7 +283,9 @@ public class JsonBuilder implements Cloneable {
                 json = ESCAPES.matcher(json).replaceAll("\\\\\\\\");
             }
             return json;
-        } catch (JsonProcessingException | RepositoryException e) {
+        } catch (JsonProcessingException e) {
+            log.debug("Failed to generate JSON string", e);
+        } catch (RepositoryException e) {
             log.error("Failed to generate JSON string", e);
         }
 
@@ -452,17 +454,11 @@ public class JsonBuilder implements Cloneable {
 
                 try {
                     if (!asPropertyStream(candidate.getProperties()).filter(
-                            p -> {
-                                try {
-                                    return keyPattern.matcher(p.getName()).matches()
-                                            && valuePattern.matcher(p.getString()).matches();
-                                } catch (RepositoryException e) {
-                                    throw new RuntimeException(e);
-                                }
-                            }).collect(Collectors.toList()).isEmpty())
+                            p -> keyPattern.matcher(getName(p)).matches() && valuePattern.matcher(getString(p)).matches())
+                            .collect(Collectors.toList()).isEmpty())
                         return true;
                 } catch (RepositoryException e) {
-                    throw new RuntimeException(e);
+                    log.error("Failed to get properties of node", e);
                 }
 
                 if (!specialProperties.entrySet().stream().filter(
@@ -475,12 +471,13 @@ public class JsonBuilder implements Cloneable {
             return false;
         }
 
-        private Object childrenAsContentMapList(Node node) {
+        private List<ContentMap> childrenAsContentMapList(Node node) {
             try {
                 return asNodeStream(node.getNodes()).map(n -> new EntryableContentMap(config.cloneWith(n)))
                         .collect(Collectors.toList());
             } catch (RepositoryException e) {
-                throw new RuntimeException(e);
+                log.error("Failed to get children of node {}", node, e);
+                return new ArrayList<>();
             }
         }
 
@@ -666,6 +663,23 @@ public class JsonBuilder implements Cloneable {
 
     public void setJson(String json) {
         this.preexisingJson = json;
+    }
+
+    // TODO: Move to utils class, e.g. Java8Util
+    /**
+     * Returns a property's value as String.
+     *
+     * Defaults to an empty string in case of a RepositoryException.
+     *
+     * @param p
+     */
+    static String getString(Property p) {
+        try {
+            return p.getString();
+        } catch (RepositoryException e) {
+            log.error("Failed to get value string of a property", e);
+            return "";
+        }
     }
 
 }

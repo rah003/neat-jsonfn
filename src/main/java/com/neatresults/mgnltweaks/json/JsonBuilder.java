@@ -283,10 +283,8 @@ public class JsonBuilder implements Cloneable {
                 json = ESCAPES.matcher(json).replaceAll("\\\\\\\\");
             }
             return json;
-        } catch (JsonProcessingException e) {
+        } catch (JsonProcessingException | RepositoryException e) {
             log.debug("Failed to generate JSON string", e);
-        } catch (RepositoryException e) {
-            log.error("Failed to generate JSON string", e);
         }
 
         return "{ }";

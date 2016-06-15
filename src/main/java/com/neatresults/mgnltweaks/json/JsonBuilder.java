@@ -25,17 +25,29 @@
  */
 package com.neatresults.mgnltweaks.json;
 
-import static com.neatresults.Java8Util.asNodeStream;
-import static com.neatresults.Java8Util.asPropertyStream;
-import static com.neatresults.Java8Util.getName;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.neatresults.Java8Util;
+import com.neatresults.PredicateSplitterConsumer;
 import info.magnolia.context.MgnlContext;
 import info.magnolia.jcr.util.ContentMap;
 import info.magnolia.jcr.util.PropertyUtil;
 import info.magnolia.jcr.wrapper.I18nNodeWrapper;
 import info.magnolia.link.LinkUtil;
 import info.magnolia.objectfactory.Components;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.jcr.Node;
+import javax.jcr.NodeIterator;
+import javax.jcr.Property;
+import javax.jcr.PropertyIterator;
+import javax.jcr.PropertyType;
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.nodetype.NodeType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -53,24 +65,7 @@ import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.jcr.Node;
-import javax.jcr.NodeIterator;
-import javax.jcr.Property;
-import javax.jcr.PropertyIterator;
-import javax.jcr.PropertyType;
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.jcr.nodetype.NodeType;
-
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.neatresults.Java8Util;
-import com.neatresults.PredicateSplitterConsumer;
+import static com.neatresults.Java8Util.*;
 
 /**
  * Builder class for converting JCR nodes into json ... with few little extras :D .
@@ -107,7 +102,7 @@ public class JsonBuilder implements Cloneable {
     private Map<String, List<String>> subNodeSpecificProperties = new LinkedHashMap<>();
     private boolean escapeBackslash = false;
 
-
+    private final Map<String, String> childrenArrayCandidates = new HashMap<>();
 
     protected JsonBuilder() {
     }
@@ -226,6 +221,11 @@ public class JsonBuilder implements Cloneable {
         return this;
     }
 
+    public JsonBuilder childrenAsArray(String propertyName, String valueRegex) {
+        childrenArrayCandidates.put(propertyName, valueRegex);
+        return this;
+    }
+
     /**
      * Executes configured chain of operations and produces the json output.
      */
@@ -284,7 +284,7 @@ public class JsonBuilder implements Cloneable {
             }
             return json;
         } catch (JsonProcessingException | RepositoryException e) {
-            // ignore
+            log.debug("Failed to generate JSON string", e);
         }
 
         return "{ }";
@@ -430,6 +430,54 @@ public class JsonBuilder implements Cloneable {
             this.deletedKeys.add(key);
             return obj;
         }
+        
+        @Override
+        public Object get(Object key) {
+            Object superResult = super.get(key);
+            if (!(superResult instanceof ContentMap))
+                return superResult;
+
+            Node node = ((ContentMap) superResult).getJCRNode();
+            if (isArrayParent(node))
+                return childrenAsContentMapList(node);
+
+            return superResult;
+        }
+
+        private boolean isArrayParent(Node candidate) {
+            for (String key : config.childrenArrayCandidates.keySet()) {
+                final String value = config.childrenArrayCandidates.get(key);
+                final Pattern valuePattern = Pattern.compile(value);
+                final Pattern keyPattern = Pattern.compile(key);
+
+                try {
+                    if (!asPropertyStream(candidate.getProperties()).filter(
+                            p -> keyPattern.matcher(getName(p)).matches() && valuePattern.matcher(PropertyUtil.getValueString(p)).matches())
+                            .collect(Collectors.toList()).isEmpty())
+                        return true;
+                } catch (RepositoryException e) {
+                    log.debug("Failed to get properties of node", e);
+                }
+
+                if (!specialProperties.entrySet().stream().filter(
+                        entry -> keyPattern.matcher(entry.getKey()).matches())
+                        .filter(entry -> valuePattern.matcher(invoke(entry.getValue(), candidate) + "").matches())
+                        .collect(Collectors.toList()).isEmpty())
+                    return true;
+            }
+
+            return false;
+        }
+
+        private List<ContentMap> childrenAsContentMapList(Node node) {
+            try {
+                return asNodeStream(node.getNodes()).map(n -> new EntryableContentMap(config.cloneWith(n)))
+                        .collect(Collectors.toList());
+            } catch (RepositoryException e) {
+                log.debug("Failed to get children of node {}", node, e);
+                return Collections.EMPTY_LIST;
+            }
+        }
 
         private void populateProperties(Map<String, Object> props) {
             PropertyIterator properties;
@@ -473,7 +521,7 @@ public class JsonBuilder implements Cloneable {
                     asNodeStream(node.getNodes())
                     .filter(config::isSearchInNodeType)
                     .forEach(new PredicateSplitterConsumer<Node>(config::isOfAllowedDepthAndType,
-                            allowedNode -> props.put(maskChars(getName(allowedNode)), new EntryableContentMap(config.cloneWith(allowedNode))),
+                            allowedNode -> props.put(maskChars(getName(allowedNode)), getOutputSubtree(allowedNode)),
                             allowedParent -> props.putAll(this.getAllowedChildNodesPropertyMapsOf(allowedParent))));
                 }
 
@@ -483,6 +531,13 @@ public class JsonBuilder implements Cloneable {
             }
 
             deletedKeys.stream().forEach(key -> props.remove(key));
+        }
+
+        private Object getOutputSubtree(Node node) {
+            if (isArrayParent(node))
+                return childrenAsContentMapList(node);
+
+            return new EntryableContentMap(config.cloneWith(node));
         }
 
         private String maskChars(String name) {

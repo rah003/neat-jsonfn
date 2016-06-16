@@ -25,29 +25,20 @@
  */
 package com.neatresults.mgnltweaks.json;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.neatresults.Java8Util;
-import com.neatresults.PredicateSplitterConsumer;
+import static com.neatresults.Java8Util.asNodeStream;
+import static com.neatresults.Java8Util.asPropertyStream;
+import static com.neatresults.Java8Util.getName;
+import static info.magnolia.jcr.util.PropertyUtil.getJCRPropertyType;
+import static info.magnolia.jcr.util.PropertyUtil.getPropertyValueObject;
+import static info.magnolia.jcr.util.PropertyUtil.getValueString;
+import static info.magnolia.jcr.util.PropertyUtil.getValuesStringList;
+
 import info.magnolia.context.MgnlContext;
 import info.magnolia.jcr.util.ContentMap;
-import info.magnolia.jcr.util.PropertyUtil;
 import info.magnolia.jcr.wrapper.I18nNodeWrapper;
 import info.magnolia.link.LinkUtil;
 import info.magnolia.objectfactory.Components;
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import javax.jcr.Node;
-import javax.jcr.NodeIterator;
-import javax.jcr.Property;
-import javax.jcr.PropertyIterator;
-import javax.jcr.PropertyType;
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
-import javax.jcr.nodetype.NodeType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -65,7 +56,24 @@ import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.neatresults.Java8Util.*;
+import javax.jcr.Node;
+import javax.jcr.NodeIterator;
+import javax.jcr.Property;
+import javax.jcr.PropertyIterator;
+import javax.jcr.PropertyType;
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.nodetype.NodeType;
+
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.neatresults.PredicateSplitterConsumer;
+
 
 /**
  * Builder class for converting JCR nodes into json ... with few little extras :D .
@@ -332,7 +340,7 @@ public class JsonBuilder implements Cloneable {
         try {
             Collection<EntryableContentMap> childNodes = new LinkedList<EntryableContentMap>();
             NodeIterator nodes = n.getNodes();
-            Java8Util.asNodeStream(nodes)
+            asNodeStream(nodes)
             .filter(this::isSearchInNodeType)
             .forEach(new PredicateSplitterConsumer<Node>(this::isOfAllowedDepthAndType,
                     allowedNode -> childNodes.add(new EntryableContentMap(this.cloneWith(allowedNode))),
@@ -430,7 +438,7 @@ public class JsonBuilder implements Cloneable {
             this.deletedKeys.add(key);
             return obj;
         }
-        
+
         @Override
         public Object get(Object key) {
             Object superResult = super.get(key);
@@ -451,8 +459,8 @@ public class JsonBuilder implements Cloneable {
                 final Pattern keyPattern = Pattern.compile(key);
 
                 try {
-                    if (!asPropertyStream(candidate.getProperties()).filter(
-                            p -> keyPattern.matcher(getName(p)).matches() && valuePattern.matcher(PropertyUtil.getValueString(p)).matches())
+                    if (!asPropertyStream(candidate.getProperties())
+                            .filter(p -> keyPattern.matcher(getName(p)).matches() && valuePattern.matcher(getValueString(p)).matches())
                             .collect(Collectors.toList()).isEmpty())
                         return true;
                 } catch (RepositoryException e) {
@@ -471,7 +479,8 @@ public class JsonBuilder implements Cloneable {
 
         private List<ContentMap> childrenAsContentMapList(Node node) {
             try {
-                return asNodeStream(node.getNodes()).map(n -> new EntryableContentMap(config.cloneWith(n)))
+                return asNodeStream(node.getNodes())
+                        .map(n -> new EntryableContentMap(config.cloneWith(n)))
                         .collect(Collectors.toList());
             } catch (RepositoryException e) {
                 log.debug("Failed to get children of node {}", node, e);
@@ -501,10 +510,10 @@ public class JsonBuilder implements Cloneable {
                             .filter(name -> !matchesRegex(name, config.regexExcludes));
 
                     // do not try to include binary data since we don't try to encode them either and jackson just blows w/o that
-                    stream.filter(name -> PropertyUtil.getJCRPropertyType(PropertyUtil.getPropertyValueObject(node, name)) != PropertyType.BINARY)
+                    stream.filter(name -> getJCRPropertyType(getPropertyValueObject(node, name)) != PropertyType.BINARY)
                     .forEach(new PredicateSplitterConsumer<String>(config.expands::containsKey,
                             expandableProperty -> props.put(maskChars(expandableProperty), expand(expandableProperty, node)),
-                            flatProperty -> props.put(maskChars(flatProperty), PropertyUtil.getPropertyValueObject(node, flatProperty))));
+                            flatProperty -> props.put(maskChars(flatProperty), getPropertyValueObject(node, flatProperty))));
 
                     Stream<Entry<String, Method>> specialStream;
                     specialStream = specialProperties.entrySet().stream()
@@ -610,12 +619,12 @@ public class JsonBuilder implements Cloneable {
             try {
                 Property property = node.getProperty(expandableProperty);
                 if (property.isMultiple()) {
-                    List<String> expandables = PropertyUtil.getValuesStringList(property.getValues());
+                    List<String> expandables = getValuesStringList(property.getValues());
                     return expandables.stream()
                             .map(expandable -> expandSingle(expandable, workspace, expandableProperty))
                             .collect(Collectors.toList());
                 } else {
-                    String expandable = PropertyUtil.getValueString(property);
+                    String expandable = getValueString(property);
                     return expandSingle(expandable, workspace, expandableProperty);
                 }
 

@@ -106,7 +106,7 @@ Maven dependency
     <dependency>
       <groupId>com.neatresults.mgnltweaks</groupId>
       <artifactId>neat-jsonfn</artifactId>
-      <version>1.0.4</version>
+      <version>1.0.5</version>
     </dependency>
 ```
 
@@ -114,7 +114,7 @@ Versions
 -----------------
 Version 1.0.x should be compatible with all Magnolia 5.x versions, but was tested only on 5.4.3 and not before. If you run into any issues w/ older versions, please report them back.
 
-Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-jsonfn/1.0.4/neat-jsonfn-1.0.4.jar
+Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-jsonfn/1.0.5/neat-jsonfn-1.0.5.jar
 
 Installation & updates 
 -----------------
@@ -130,6 +130,13 @@ On Magnolia 5.3.x together with neat-tweaks
 
 Changes
 -----------------
+1.0.5
+- #12 added new function to retrieve child nodes optionaly in array ```childrenAsArray()``` 
+- #9 fixed issued with double escaping slashes depending on whether outputing JSON inside of JS string or not
+- #10 added support for nested expand 
+- #8 added support for excluding subproperties
+- #7 removal of empty levels of hierarchies when filtering node types out (e.g. folders)
+
 1.0.4
 - fixed errorneous comma added when appending to empty array in ```appendFrom()``` 
 

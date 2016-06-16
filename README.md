@@ -55,6 +55,14 @@ and most importantly you can also expand any property you want, by providing nam
 
 ```.expand(“categoryId”, “category”) ```
 
+You can select nodes to display their children as array (properties will be skipped):
+
+```.childrenAsArray("@nodeType", "productList")```
+
+This also works with regex for key and value:
+
+```.childrenAsArray("(@name|title)", ".*list")```
+
 you can also tell function to include links for renditions of binaries by calling:
 
 ```.binaryLinkRendition("rendition1", "rendition2", ...) ```

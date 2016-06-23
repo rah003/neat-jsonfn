@@ -736,7 +736,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
     public void testInsertCustom() throws Exception {
         Node node = session.getNode("/home/section2/article");
         Node customContainer = node.addNode("customContainer", "mgnl:content");
-        customContainer.setProperty("foo", "bar");
+        customContainer.setProperty("aa", "bb");
         session.save();
 
         String myArray = "[ \"one\", \"two\", \"three\" ]";
@@ -746,10 +746,12 @@ public class JsonBuilderTest extends RepositoryTestCase {
         String customArray = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer", myArray).down(2).inline().print();
         String customObject = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer", myObject).down(2).inline().print();
         String customNumber = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer", myNumber).down(2).inline().print();
+        String noReplacement = JsonTemplatingFunctions.from(node).addAll().insertCustom("nonexisting/path", myNumber).down(2).inline().print();
 
         assertTrue(customArray.contains("\"customContainer\":[\"one\",\"two\",\"three\"]"));
         assertTrue(customObject.contains("\"customContainer\":{\"foo\":\"bar\"}"));
         assertTrue(customNumber.contains("\"customContainer\":99"));
+        assertTrue(noReplacement.contains("\"aa\":\"bb\""));
     }
 
     /**

@@ -732,6 +732,19 @@ public class JsonBuilderTest extends RepositoryTestCase {
                 + "}", withArray);
     }
 
+    @Test
+    public void testInsertCustom() throws Exception {
+        Node node = session.getNode("/home/section2/article");
+        Node customContainer = node.addNode("customContainer", "mgnl:content");
+        customContainer.setProperty("foo", "bar");
+        session.save();
+
+        String myArray = "[ \"one\", \"two\", \"three\" ]";
+        String customized = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer", myArray).down(2).inline().print();
+
+        assertTrue(customized.contains("\"customContainer\":[\"one\",\"two\",\"three\"]"));
+    }
+
     /**
      * Test performance.
      */

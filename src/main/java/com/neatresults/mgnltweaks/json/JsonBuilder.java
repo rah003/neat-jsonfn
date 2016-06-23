@@ -33,12 +33,15 @@ import static info.magnolia.jcr.util.PropertyUtil.getPropertyValueObject;
 import static info.magnolia.jcr.util.PropertyUtil.getValueString;
 import static info.magnolia.jcr.util.PropertyUtil.getValuesStringList;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import info.magnolia.context.MgnlContext;
 import info.magnolia.jcr.util.ContentMap;
+import info.magnolia.jcr.util.NodeUtil;
 import info.magnolia.jcr.wrapper.I18nNodeWrapper;
 import info.magnolia.link.LinkUtil;
 import info.magnolia.objectfactory.Components;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -50,6 +53,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -111,6 +115,8 @@ public class JsonBuilder implements Cloneable {
     private boolean escapeBackslash = false;
 
     private final Map<String, String> childrenArrayCandidates = new HashMap<>();
+
+    private final Map<String, JsonNode> customInserts = new HashMap<>();
 
     protected JsonBuilder() {
     }
@@ -231,6 +237,16 @@ public class JsonBuilder implements Cloneable {
 
     public JsonBuilder childrenAsArray(String propertyName, String valueRegex) {
         childrenArrayCandidates.put(propertyName, valueRegex);
+        return this;
+    }
+
+    public JsonBuilder insertCustom(String pathSuffix, String json) {
+        try {
+            JsonNode jsonObject = mapper.reader().readTree(json);
+            customInserts.put(pathSuffix, jsonObject);
+        } catch (IOException e) {
+            log.debug("Failed to parse custom JSON", e);
+        }
         return this;
     }
 
@@ -446,10 +462,28 @@ public class JsonBuilder implements Cloneable {
                 return superResult;
 
             Node node = ((ContentMap) superResult).getJCRNode();
+            if (hasCustomReplacement(node))
+                return getCustomReplacement(node);
             if (isArrayParent(node))
                 return childrenAsContentMapList(node);
 
             return superResult;
+        }
+
+        private boolean hasCustomReplacement(Node node) {
+            return getCustomReplacement(node) != null;
+        }
+
+        private JsonNode getCustomReplacement(Node node) {
+            String path = NodeUtil.getPathIfPossible(node);
+            if (StringUtils.isEmpty(path))
+                return null;
+            Optional<String> keyOptional = config.customInserts.keySet().stream()
+                    .filter(pathSuffix -> path.endsWith(pathSuffix)).findFirst();
+            if (keyOptional.isPresent())
+                return config.customInserts.get(keyOptional.get());
+
+            return null;
         }
 
         private boolean isArrayParent(Node candidate) {
@@ -543,6 +577,9 @@ public class JsonBuilder implements Cloneable {
         }
 
         private Object getOutputSubtree(Node node) {
+            if (hasCustomReplacement(node))
+                return getCustomReplacement(node);
+
             if (isArrayParent(node))
                 return childrenAsContentMapList(node);
 

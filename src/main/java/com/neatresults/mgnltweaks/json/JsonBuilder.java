@@ -36,7 +36,6 @@ import static info.magnolia.jcr.util.PropertyUtil.getValuesStringList;
 import com.fasterxml.jackson.databind.JsonNode;
 import info.magnolia.context.MgnlContext;
 import info.magnolia.jcr.util.ContentMap;
-import info.magnolia.jcr.util.NodeUtil;
 import info.magnolia.jcr.wrapper.I18nNodeWrapper;
 import info.magnolia.link.LinkUtil;
 import info.magnolia.objectfactory.Components;
@@ -60,7 +59,14 @@ import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.jcr.*;
+import javax.jcr.Item;
+import javax.jcr.Node;
+import javax.jcr.NodeIterator;
+import javax.jcr.Property;
+import javax.jcr.PropertyIterator;
+import javax.jcr.PropertyType;
+import javax.jcr.RepositoryException;
+import javax.jcr.Session;
 import javax.jcr.nodetype.NodeType;
 
 import org.apache.commons.lang3.StringUtils;
@@ -553,8 +559,8 @@ public class JsonBuilder implements Cloneable {
                             expandableProperty -> props.put(maskChars(expandableProperty), expand(expandableProperty, node)),
                             flatProperty -> props.put(maskChars(flatProperty), getPropertyValueObject(node, flatProperty))));
 
-					asPropertyStream(node.getProperties()).filter(p -> hasCustomReplacement(p))
-							.forEach(p -> props.put(maskChars(getName(p)), getCustomReplacement(p)));
+                    asPropertyStream(node.getProperties()).filter(p -> hasCustomReplacement(p))
+                        .forEach(p -> props.put(maskChars(getName(p)), getCustomReplacement(p)));
 
                     Stream<Entry<String, Method>> specialStream;
                     specialStream = specialProperties.entrySet().stream()

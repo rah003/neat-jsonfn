@@ -239,7 +239,14 @@ public class JsonBuilder implements Cloneable {
         childrenArrayCandidates.put(propertyName, valueRegex);
         return this;
     }
-
+    
+    /**
+     * Insert custom JSON anywhere in the tree, replacing pre-existing content.
+     * Invalid JSON is ignored, i.e. the original content remains in that case.
+     *
+     * @param pathSuffix
+     * @param json
+     */
     public JsonBuilder insertCustom(String pathSuffix, String json) {
         try {
             JsonNode jsonObject = mapper.reader().readTree(json);

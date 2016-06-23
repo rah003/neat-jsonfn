@@ -740,9 +740,16 @@ public class JsonBuilderTest extends RepositoryTestCase {
         session.save();
 
         String myArray = "[ \"one\", \"two\", \"three\" ]";
-        String customized = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer", myArray).down(2).inline().print();
+        String myObject = "{ \"foo\" : \"bar\" }";
+        String myNumber = "99";
 
-        assertTrue(customized.contains("\"customContainer\":[\"one\",\"two\",\"three\"]"));
+        String customArray = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer", myArray).down(2).inline().print();
+        String customObject = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer", myObject).down(2).inline().print();
+        String customNumber = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer", myNumber).down(2).inline().print();
+
+        assertTrue(customArray.contains("\"customContainer\":[\"one\",\"two\",\"three\"]"));
+        assertTrue(customObject.contains("\"customContainer\":{\"foo\":\"bar\"}"));
+        assertTrue(customNumber.contains("\"customContainer\":99"));
     }
 
     /**

@@ -60,13 +60,7 @@ import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.jcr.Node;
-import javax.jcr.NodeIterator;
-import javax.jcr.Property;
-import javax.jcr.PropertyIterator;
-import javax.jcr.PropertyType;
-import javax.jcr.RepositoryException;
-import javax.jcr.Session;
+import javax.jcr.*;
 import javax.jcr.nodetype.NodeType;
 
 import org.apache.commons.lang3.StringUtils;
@@ -477,18 +471,21 @@ public class JsonBuilder implements Cloneable {
             return superResult;
         }
 
-        private boolean hasCustomReplacement(Node node) {
-            return getCustomReplacement(node) != null;
+        private boolean hasCustomReplacement(Item item) {
+            return getCustomReplacement(item) != null;
         }
 
-        private JsonNode getCustomReplacement(Node node) {
-            String path = NodeUtil.getPathIfPossible(node);
-            if (StringUtils.isEmpty(path))
-                return null;
-            Optional<String> keyOptional = config.customInserts.keySet().stream()
-                    .filter(pathSuffix -> path.endsWith(pathSuffix)).findFirst();
-            if (keyOptional.isPresent())
-                return config.customInserts.get(keyOptional.get());
+        private JsonNode getCustomReplacement(Item item) {
+            try {
+                final String path = item.getPath();
+
+                Optional<String> keyOptional = config.customInserts.keySet().stream()
+                        .filter(pathSuffix -> path.endsWith(pathSuffix)).findFirst();
+                if (keyOptional.isPresent())
+                    return config.customInserts.get(keyOptional.get());
+            } catch (RepositoryException e) {
+                log.debug("Failed to get path of JCR item", e);
+            }
 
             return null;
         }
@@ -555,6 +552,9 @@ public class JsonBuilder implements Cloneable {
                     .forEach(new PredicateSplitterConsumer<String>(config.expands::containsKey,
                             expandableProperty -> props.put(maskChars(expandableProperty), expand(expandableProperty, node)),
                             flatProperty -> props.put(maskChars(flatProperty), getPropertyValueObject(node, flatProperty))));
+
+					asPropertyStream(node.getProperties()).filter(p -> hasCustomReplacement(p))
+							.forEach(p -> props.put(maskChars(getName(p)), getCustomReplacement(p)));
 
                     Stream<Entry<String, Method>> specialStream;
                     specialStream = specialProperties.entrySet().stream()

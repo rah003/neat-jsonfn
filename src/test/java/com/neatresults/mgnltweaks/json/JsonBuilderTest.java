@@ -748,10 +748,14 @@ public class JsonBuilderTest extends RepositoryTestCase {
         String customNumber = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer", myNumber).down(2).inline().print();
         String noReplacement = JsonTemplatingFunctions.from(node).addAll().insertCustom("nonexisting/path", myNumber).down(2).inline().print();
 
+        String replacedAtProperty = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer/aa", myObject).down(2).inline().print();
+
         assertTrue(customArray.contains("\"customContainer\":[\"one\",\"two\",\"three\"]"));
         assertTrue(customObject.contains("\"customContainer\":{\"foo\":\"bar\"}"));
         assertTrue(customNumber.contains("\"customContainer\":99"));
         assertTrue(noReplacement.contains("\"aa\":\"bb\""));
+
+        assertTrue(replacedAtProperty.contains("\"aa\":{\"foo\":\"bar\"}"));
     }
 
     /**

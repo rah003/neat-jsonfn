@@ -824,7 +824,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
 
         // WHEN
         String json = JsonTemplatingFunctions.from(node).expand("foo.", "category", "fooId").maskChar('.', 'x').add("name", "@name").down(1).print();
-        System.out.println(json);
+
         // THEN
         assertThat(json, startsWith("{"));
         assertThat(json, not(containsString("\"jcr:created\" : ")));
@@ -862,7 +862,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
 
         // WHEN
         String json = JsonTemplatingFunctions.from(node).expand("foox", "category", "fooId").add("name", "@name").down(1).print();
-        System.out.println(json);
+
         // THEN
         assertThat(json, startsWith("{"));
         assertThat(json, not(containsString("\"jcr:created\" : ")));

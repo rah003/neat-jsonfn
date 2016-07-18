@@ -88,12 +88,12 @@ import com.neatresults.PredicateSplitterConsumer;
  */
 public class JsonBuilder implements Cloneable {
 
-    public class MultiExpand {
+    private class MultiExpand {
 
         private final String repository;
         private final String propertyName;
 
-        public MultiExpand(String targetRepository, String targetPropertyName) {
+        private MultiExpand(String targetRepository, String targetPropertyName) {
             this.repository = targetRepository;
             this.propertyName = targetPropertyName;
         }

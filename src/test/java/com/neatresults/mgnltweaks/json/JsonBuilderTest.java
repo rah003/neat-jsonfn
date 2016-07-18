@@ -30,7 +30,10 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.startsWith;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -59,6 +62,7 @@ import javax.jcr.nodetype.NodeTypeManager;
 import javax.jcr.nodetype.NodeTypeTemplate;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -755,7 +759,121 @@ public class JsonBuilderTest extends RepositoryTestCase {
         assertTrue(customNumber.contains("\"customContainer\":99"));
         assertTrue(noReplacement.contains("\"aa\":\"bb\""));
 
-        assertTrue(replacedAtProperty.contains("\"aa\":{\"foo\":\"bar\"}"));
+        assertThat(replacedAtProperty, containsString("\"aa\":{\"foo\":\"bar\"}"));
+    }
+
+    /**
+     * Lists specified properties only for expanded nodes but not for the parent nodes.
+     */
+    @Test
+    public void testMultiExpandNodePropertyListing() throws Exception {
+        Node node = session.getNode("/home/section2/article/mgnl:apex");
+        node.addNode("blah", "mgnl:content");
+        catNode.setProperty("fooId", "123");
+        Session catSession = catNode.getSession();
+        Node cn2 = catSession.getRootNode().addNode("foo2name", "category");
+        cn2.setProperty("fooId", "456");
+        Node cn3 = catSession.getRootNode().addNode("foo3name", "category");
+        cn3.setProperty("fooId", "789");
+        catSession.save();
+
+        node.setProperty("foo1", "123");
+        node.setProperty("foo2", "456");
+        node.setProperty("foo3", "789");
+        node.save();
+
+        session.getWorkspace().copy(node.getPath(), node.getParent().getPath() + "/test2");
+        session.getWorkspace().copy(node.getPath(), node.getParent().getPath() + "/test3");
+
+        // WHEN
+        String json = JsonTemplatingFunctions.from(node).expand("foo.", "category", "fooId").add("name", "@name").down(1).print();
+        // THEN
+        assertThat(json, startsWith("{"));
+        assertThat(json, not(containsString("\"jcr:created\" : ")));
+        assertThat(json, not(containsString("\"foobar\" : {")));
+        assertThat(json, containsString("\"@name\" : \"foo\""));
+        assertThat(json, containsString("\"@name\" : \"foo2name\""));
+        assertThat(json, containsString("\"@name\" : \"foo3name\""));
+        assertEquals(1, StringUtils.countMatches(json, "foo3name"));
+        assertThat(json, endsWith("}"));
+    }
+
+    /**
+     * Lists specified properties only for expanded nodes but not for the parent nodes.
+     */
+    @Test
+    public void testMultiExpandNodeMultiPropertiesListing() throws Exception {
+        Node node = session.getNode("/home/section2/article/mgnl:apex");
+        node.addNode("blah", "mgnl:content");
+        catNode.setProperty("fooId", "123");
+        Session catSession = catNode.getSession();
+        Node cn2 = catSession.getRootNode().addNode("foo2name", "category");
+        // this guy contains all and we should not allow duplicates
+        cn2.setProperty("fooId", new String[] { "456", "789", "123" });
+        Node cn3 = catSession.getRootNode().addNode("foo3name", "category");
+        cn3.setProperty("fooId", "789");
+        catSession.save();
+
+        node.setProperty("foo1", "123");
+        node.setProperty("foo2", "456");
+        node.setProperty("foo3", "789");
+        node.save();
+
+        session.getWorkspace().copy(node.getPath(), node.getParent().getPath() + "/test2");
+        session.getWorkspace().copy(node.getPath(), node.getParent().getPath() + "/test3");
+
+        // WHEN
+        String json = JsonTemplatingFunctions.from(node).expand("foo.", "category", "fooId").maskChar('.', 'x').add("name", "@name").down(1).print();
+        System.out.println(json);
+        // THEN
+        assertThat(json, startsWith("{"));
+        assertThat(json, not(containsString("\"jcr:created\" : ")));
+        assertThat(json, not(containsString("\"foobar\" : {")));
+        assertThat(json, not(containsString("\"foo.\" : {")));
+        assertThat(json, containsString("\"foox\" : [ {"));
+        assertThat(json, containsString("\"@name\" : \"foo\""));
+        assertThat(json, containsString("\"@name\" : \"foo2name\""));
+        assertThat(json, containsString("\"@name\" : \"foo3name\""));
+        assertEquals(1, StringUtils.countMatches(json, "foo2name"));
+        assertThat(json, endsWith("}"));
+    }
+
+    /**
+     * Lists specified properties only for expanded nodes but not for the parent nodes.
+     */
+    @Test
+    public void testMultiExpandNodeMultiPropertiesListingFromMultiValueProperty() throws Exception {
+        Node node = session.getNode("/home/section2/article/mgnl:apex");
+        node.addNode("blah", "mgnl:content");
+        catNode.setProperty("fooId", "123");
+        Session catSession = catNode.getSession();
+        Node cn2 = catSession.getRootNode().addNode("foo2name", "category");
+        // this guy contains all and we should not allow duplicates
+        cn2.setProperty("fooId", new String[] { "456", "789", "123" });
+        Node cn3 = catSession.getRootNode().addNode("foo3name", "category");
+        cn3.setProperty("fooId", "789");
+        catSession.save();
+
+        node.setProperty("foox", new String[] { "123", "456", "789" });
+        node.save();
+
+        session.getWorkspace().copy(node.getPath(), node.getParent().getPath() + "/test2");
+        session.getWorkspace().copy(node.getPath(), node.getParent().getPath() + "/test3");
+
+        // WHEN
+        String json = JsonTemplatingFunctions.from(node).expand("foox", "category", "fooId").add("name", "@name").down(1).print();
+        System.out.println(json);
+        // THEN
+        assertThat(json, startsWith("{"));
+        assertThat(json, not(containsString("\"jcr:created\" : ")));
+        assertThat(json, not(containsString("\"foobar\" : {")));
+        assertThat(json, not(containsString("\"foo.\" : {")));
+        assertThat(json, containsString("\"foox\" : [ {"));
+        assertThat(json, containsString("\"@name\" : \"foo\""));
+        assertThat(json, containsString("\"@name\" : \"foo2name\""));
+        assertThat(json, containsString("\"@name\" : \"foo3name\""));
+        assertEquals(1, StringUtils.countMatches(json, "foo2name"));
+        assertThat(json, endsWith("}"));
     }
 
     /**
@@ -803,6 +921,6 @@ public class JsonBuilderTest extends RepositoryTestCase {
                     .wrapForI18n()
                     .inline().print();
         }
-    }
 
+    }
 }

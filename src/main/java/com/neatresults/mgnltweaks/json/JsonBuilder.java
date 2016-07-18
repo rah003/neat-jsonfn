@@ -34,6 +34,7 @@ import static info.magnolia.jcr.util.PropertyUtil.getValueString;
 import static info.magnolia.jcr.util.PropertyUtil.getValuesStringList;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import info.magnolia.cms.util.QueryUtil;
 import info.magnolia.context.MgnlContext;
 import info.magnolia.jcr.util.ContentMap;
 import info.magnolia.jcr.wrapper.I18nNodeWrapper;
@@ -43,10 +44,12 @@ import info.magnolia.objectfactory.Components;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -54,6 +57,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
@@ -83,6 +87,18 @@ import com.neatresults.PredicateSplitterConsumer;
  * Builder class for converting JCR nodes into json ... with few little extras :D .
  */
 public class JsonBuilder implements Cloneable {
+
+    public class MultiExpand {
+
+        private final String repository;
+        private final String propertyName;
+
+        public MultiExpand(String targetRepository, String targetPropertyName) {
+            this.repository = targetRepository;
+            this.propertyName = targetPropertyName;
+        }
+
+    }
 
     private static final Logger log = LoggerFactory.getLogger(JsonBuilder.class);
     private static final Pattern ESCAPES = Pattern.compile("\\\\");
@@ -114,7 +130,8 @@ public class JsonBuilder implements Cloneable {
     private Map<String, List<String>> subNodeSpecificProperties = new LinkedHashMap<>();
     private boolean escapeBackslash = false;
 
-    private final Map<String, String> childrenArrayCandidates = new HashMap<>();
+    private final Map<String, String> childrenArrayCandidates = new LinkedHashMap<>();
+    private Map<String, MultiExpand> expandsMulti = new LinkedHashMap<>();
 
     private final Map<String, JsonNode> customInserts = new HashMap<>();
 
@@ -144,6 +161,20 @@ public class JsonBuilder implements Cloneable {
     public JsonBuilder expand(String propertyName, String repository) {
         this.expands.put(propertyName, repository);
         this.butInclude.add(propertyName);
+        return this;
+    }
+
+    /**
+     * Will expand id(s) provided in propertyNameRegex into sub array of nodes from targetRepository with property matching the targetPropertyName and one of the values in propertyNameRegex.
+     *
+     * @param propertyName
+     *            property to expand.
+     * @param repository
+     *            repository in which to look for node matching the id specified in the property.
+     */
+    public JsonBuilder expand(String propertyNameRegex, String targetRepository, String targetPropertyName) {
+        this.expandsMulti.put(propertyNameRegex, new MultiExpand(targetRepository, targetPropertyName));
+        this.butInclude.add(propertyNameRegex);
         return this;
     }
 
@@ -271,6 +302,7 @@ public class JsonBuilder implements Cloneable {
             node = new I18nNodeWrapper(node);
         }
         try {
+            // total depth is that of starting node + set total by user
             totalDepth += node.getDepth();
             String json;
             if (childrenOnly) {
@@ -293,7 +325,7 @@ public class JsonBuilder implements Cloneable {
 
             } else {
                 EntryableContentMap map = new EntryableContentMap(this);
-                List garbage = map.entrySet().stream()
+                List<String> garbage = map.entrySet().stream()
                         .filter(entry -> entry.getValue() instanceof EntryableContentMap)
                         .filter(entry -> ((EntryableContentMap) entry.getValue()).entrySet().isEmpty())
                         .map(entry -> entry.getKey())
@@ -376,6 +408,15 @@ public class JsonBuilder implements Cloneable {
         }
     }
 
+    private boolean isExpandable(String propertyName) {
+        // quick check for simple props
+        if (expands.containsKey(propertyName)) {
+            return true;
+        }
+
+        return expandsMulti.keySet().stream().anyMatch(regex -> propertyName.matches(regex));
+    }
+
     private JsonBuilder cloneWith(Node n) {
         JsonBuilder clone = clone();
         clone.node = n;
@@ -388,6 +429,7 @@ public class JsonBuilder implements Cloneable {
             JsonBuilder clone = (JsonBuilder) super.clone();
             clone.butInclude = new LinkedList<>(clone.butInclude);
             clone.expands = new HashMap<>(clone.expands);
+            clone.expandsMulti = new LinkedHashMap<>(clone.expandsMulti);
             clone.masks = new LinkedHashMap<>(clone.masks);
             clone.subNodeSpecificProperties = new LinkedHashMap<>(clone.subNodeSpecificProperties);
             clone.referencingPropertyName = null;
@@ -555,12 +597,23 @@ public class JsonBuilder implements Cloneable {
 
                     // do not try to include binary data since we don't try to encode them either and jackson just blows w/o that
                     stream.filter(name -> getJCRPropertyType(getPropertyValueObject(node, name)) != PropertyType.BINARY)
-                    .forEach(new PredicateSplitterConsumer<String>(config.expands::containsKey,
+                    .forEach(new PredicateSplitterConsumer<String>(config::isExpandable,
                             expandableProperty -> props.put(maskChars(expandableProperty), expand(expandableProperty, node)),
                             flatProperty -> props.put(maskChars(flatProperty), getPropertyValueObject(node, flatProperty))));
 
                     asPropertyStream(node.getProperties()).filter(p -> hasCustomReplacement(p))
                         .forEach(p -> props.put(maskChars(getName(p)), getCustomReplacement(p)));
+
+                    // merge multiexpands with use of temp copy to avoid CCME
+                    HashMap<String, Object> propsClone = new HashMap<>(props);
+                    config.expandsMulti.keySet().stream()
+                    .map(key -> new AbstractMap.SimpleEntry<>(key, propsClone.keySet().stream()
+                            .filter(propKey -> propKey.matches(key))
+                            .map(propKey -> props.remove(propKey))
+                            .collect(Collectors.toList())))
+                    .map(entry -> new AbstractMap.SimpleEntry<>(entry.getKey(), flatten(entry.getValue())))
+                    .filter(entry -> entry.getValue().size() > 0)
+                    .forEach(entry -> props.put(maskChars(entry.getKey()), entry.getValue()));
 
                     Stream<Entry<String, Method>> specialStream;
                     specialStream = specialProperties.entrySet().stream()
@@ -587,6 +640,40 @@ public class JsonBuilder implements Cloneable {
             }
 
             deletedKeys.stream().forEach(key -> props.remove(key));
+        }
+
+        private Collection<Object> flatten(List<Object> values) {
+            if (values.size() == 0) {
+                // nothing to do
+                return values;
+            }
+            if (values.size() == 1) {
+                // for multivalue properties we end up in the list wrapped in the list, so let's unwrap
+                Object val = values.get(0);
+                if (val instanceof List) {
+                    return flatten((List) val);
+                } else {
+                    return values;
+                }
+            }
+            // dedup the items in the result list
+            TreeSet<Object> flat = new TreeSet<>(new Comparator<Object>() {
+
+                @Override
+                public int compare(Object o1, Object o2) {
+                    if (!(o1 instanceof EntryableContentMap) || !(o2 instanceof EntryableContentMap)) {
+                        return o1.equals(o2) ? 0 : 1;
+                    }
+                    EntryableContentMap c1 = (EntryableContentMap) o1;
+                    EntryableContentMap c2 = (EntryableContentMap) o2;
+                    return (c1.entrySet().containsAll(c2.entrySet()) && c2.entrySet().containsAll(c1.entrySet())) ? 0 : (c1.size() > c2.size() ? 1 : -1);
+                }
+            });
+            // and flatten out collections (if any)
+            values.stream().forEach(new PredicateSplitterConsumer<>(item -> item instanceof Collection,
+                    item -> flat.addAll((Collection) item),
+                    item -> flat.add(item)));
+            return flat;
         }
 
         private Object getOutputSubtree(Node node) {
@@ -665,17 +752,32 @@ public class JsonBuilder implements Cloneable {
 
         private Object expand(String expandableProperty, Node node) {
             Map<String, Object> expanded = new HashMap<String, Object>();
-            final String workspace = config.expands.get(expandableProperty);
+            String propWorkspace = config.expands.get(expandableProperty);
+            String propTargetName = "jcr:uuid";
+            if (propWorkspace == null) {
+                // multi expand
+                java.util.Map.Entry<String, MultiExpand> propDescriptor = config.expandsMulti.entrySet().stream()
+                        .filter(entry -> expandableProperty.matches(entry.getKey()))
+                        .findFirst()
+                        .get();
+                if (propDescriptor == null) {
+                    return expanded;
+                }
+                propWorkspace = propDescriptor.getValue().repository;
+                propTargetName = propDescriptor.getValue().propertyName;
+            }
             try {
+                final String workspace = propWorkspace;
+                final String targetName = propTargetName;
                 Property property = node.getProperty(expandableProperty);
                 if (property.isMultiple()) {
                     List<String> expandables = getValuesStringList(property.getValues());
                     return expandables.stream()
-                            .map(expandable -> expandSingle(expandable, workspace, expandableProperty))
+                            .map(expandable -> expandSingle(expandable, workspace, expandableProperty, targetName))
                             .collect(Collectors.toList());
                 } else {
                     String expandable = getValueString(property);
-                    return expandSingle(expandable, workspace, expandableProperty);
+                    return expandSingle(expandable, workspace, expandableProperty, targetName);
                 }
 
             } catch (RepositoryException e) {
@@ -685,35 +787,58 @@ public class JsonBuilder implements Cloneable {
             return expanded;
         }
 
-        private EntryableContentMap expandSingle(String expandable, String workspace, String expandableProperty) {
+        private Object expandSingle(String expandable, String workspace, String expandableProperty, String targetName) {
             if (expandable == null) {
                 return null;
             }
+            Node expandedNode;
+            try {
+                if (targetName.equals("jcr:uuid")) {
+                    Session session = MgnlContext.getJCRSession(workspace);
             if (expandable.startsWith("jcr:")) {
                 expandable = StringUtils.removeStart(expandable, "jcr:");
             }
-            Node expandedNode;
-            try {
-                Session session = MgnlContext.getJCRSession(workspace);
                 if (expandable.startsWith("/")) {
                     expandedNode = session.getNode(expandable);
                 } else {
                     expandedNode = session.getNodeByIdentifier(expandable);
                 }
-                JsonBuilder builder = config.clone();
-                if (builder.wrapForI18n) {
-                    expandedNode = new I18nNodeWrapper(expandedNode);
+                    return mapToECMap(expandedNode, expandableProperty, config);
+                } else {
+                    String statement = "select * from [nt:base] where contains(" + escapeForQuery(targetName) + ",'" + escapeForQuery(expandable) + "')";
+                    NodeIterator results = QueryUtil.search(workspace, statement);
+                    return asNodeStream(results)
+                            .map(expanded -> mapToECMap(expanded, expandableProperty, config))
+                            .collect(Collectors.toList());
                 }
-                builder.setNode(expandedNode);
-                builder.setReferencingPropertyName(expandableProperty);
-                return new EntryableContentMap(builder);
             } catch (RepositoryException e) {
                 log.debug(e.getMessage(), e);
                 return null;
             }
         }
 
-        private boolean matchesRegex(String test, List<String> regexList) {
+        private String escapeForQuery(String string) {
+            return string.replaceAll("'", "''");
+        }
+
+        private EntryableContentMap mapToECMap(Node expandedNode, String expandableProperty, JsonBuilder config) {
+                JsonBuilder builder = config.clone();
+                if (builder.wrapForI18n) {
+                    expandedNode = new I18nNodeWrapper(expandedNode);
+                }
+                builder.setNode(expandedNode);
+            try {
+                // reset total depth in respect to current depth and position of the expanded node in its own hierarchy
+                builder.totalDepth = config.totalDepth - config.node.getDepth() + expandedNode.getDepth() - 1;
+            } catch (RepositoryException e) {
+                log.debug("Failed to restrict depth of expanded node [" + expandedNode + "] for property [" + expandableProperty + "] with: " + e.getMessage());
+            }
+                builder.setReferencingPropertyName(expandableProperty);
+                return new EntryableContentMap(builder);
+
+        }
+
+        private boolean matchesRegex(String test, Collection<String> regexList) {
             return !regexList.stream().noneMatch(regex -> test.matches(regex));
         }
     }

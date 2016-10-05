@@ -127,6 +127,7 @@ Module has also dependency on neat-tweaks-common jar version 2.0.3 or higher.
 On Magnolia 5.3.x together with neat-tweaks
 - use ```neat-tweaks-developers``` & ```neat-tweaks-editors``` jars of version 1.0.x and ```neat-tweaks-common``` jar of version 2.0.x to make it play nicely with this module. If you use maven, all deps should be resolved correctly automatically. (Tested on 5.3.12)
 
+Here is a zip file with all libraries you need to use :) - https://drive.google.com/open?id=0B23s2-CZM0HzckxROHJVdmt3eE0
 
 Changes
 -----------------

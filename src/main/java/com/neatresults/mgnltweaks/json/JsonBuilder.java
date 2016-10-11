@@ -40,6 +40,7 @@ import info.magnolia.jcr.wrapper.I18nNodeWrapper;
 import info.magnolia.link.LinkUtil;
 import info.magnolia.objectfactory.Components;
 
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.AbstractMap;
@@ -53,6 +54,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
@@ -60,6 +62,7 @@ import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.jcr.Item;
 import javax.jcr.Node;
 import javax.jcr.NodeIterator;
 import javax.jcr.Property;
@@ -74,6 +77,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.neatresults.PredicateSplitterConsumer;
@@ -87,12 +91,12 @@ public class JsonBuilder implements Cloneable {
     /**
      * Simple bean holding info about expanded-to-be property mapping.
      */
-    public class MultiExpand {
+    private static class MultiExpand {
 
         private final String repository;
         private final String propertyName;
 
-        public MultiExpand(String targetRepository, String targetPropertyName) {
+        private MultiExpand(String targetRepository, String targetPropertyName) {
             this.repository = targetRepository;
             this.propertyName = targetPropertyName;
         }
@@ -131,6 +135,8 @@ public class JsonBuilder implements Cloneable {
 
     private final Map<String, String> childrenArrayCandidates = new LinkedHashMap<>();
     private Map<String, MultiExpand> expandsMulti = new LinkedHashMap<>();
+
+    private final Map<String, JsonNode> customInserts = new HashMap<>();
 
     protected JsonBuilder() {
     }
@@ -265,6 +271,23 @@ public class JsonBuilder implements Cloneable {
 
     public JsonBuilder childrenAsArray(String propertyName, String valueRegex) {
         childrenArrayCandidates.put(propertyName, valueRegex);
+        return this;
+    }
+
+    /**
+     * Insert custom JSON anywhere in the tree, replacing pre-existing content.
+     * Invalid JSON is ignored, i.e. the original content remains in that case.
+     *
+     * @param pathSuffix
+     * @param json
+     */
+    public JsonBuilder insertCustom(String pathSuffix, String json) {
+        try {
+            JsonNode jsonObject = mapper.reader().readTree(json);
+            customInserts.put(pathSuffix, jsonObject);
+        } catch (IOException e) {
+            log.debug("Failed to parse custom JSON", e);
+        }
         return this;
     }
 
@@ -491,10 +514,31 @@ public class JsonBuilder implements Cloneable {
                 return superResult;
 
             Node node = ((ContentMap) superResult).getJCRNode();
+            if (hasCustomReplacement(node))
+                return getCustomReplacement(node);
             if (isArrayParent(node))
                 return childrenAsContentMapList(node);
 
             return superResult;
+        }
+
+        private boolean hasCustomReplacement(Item item) {
+            return getCustomReplacement(item) != null;
+        }
+
+        private JsonNode getCustomReplacement(Item item) {
+            try {
+                final String path = item.getPath();
+
+                Optional<String> keyOptional = config.customInserts.keySet().stream()
+                        .filter(pathSuffix -> path.endsWith(pathSuffix)).findFirst();
+                if (keyOptional.isPresent())
+                    return config.customInserts.get(keyOptional.get());
+            } catch (RepositoryException e) {
+                log.debug("Failed to get path of JCR item", e);
+            }
+
+            return null;
         }
 
         private boolean isArrayParent(Node candidate) {
@@ -559,6 +603,9 @@ public class JsonBuilder implements Cloneable {
                     .forEach(new PredicateSplitterConsumer<String>(config::isExpandable,
                             expandableProperty -> props.put(maskChars(expandableProperty), expand(expandableProperty, node)),
                             flatProperty -> props.put(maskChars(flatProperty), getPropertyValueObject(node, flatProperty))));
+
+                    asPropertyStream(node.getProperties()).filter(p -> hasCustomReplacement(p))
+                    .forEach(p -> props.put(maskChars(getName(p)), getCustomReplacement(p)));
 
                     // merge multiexpands with use of temp copy to avoid CCME
                     HashMap<String, Object> propsClone = new HashMap<>(props);
@@ -633,6 +680,9 @@ public class JsonBuilder implements Cloneable {
         }
 
         private Object getOutputSubtree(Node node) {
+            if (hasCustomReplacement(node))
+                return getCustomReplacement(node);
+
             if (isArrayParent(node))
                 return childrenAsContentMapList(node);
 

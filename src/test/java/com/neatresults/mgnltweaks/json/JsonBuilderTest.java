@@ -736,6 +736,32 @@ public class JsonBuilderTest extends RepositoryTestCase {
                 + "}", withArray);
     }
 
+    @Test
+    public void testInsertCustom() throws Exception {
+        Node node = session.getNode("/home/section2/article");
+        Node customContainer = node.addNode("customContainer", "mgnl:content");
+        customContainer.setProperty("aa", "bb");
+        session.save();
+
+        String myArray = "[ \"one\", \"two\", \"three\" ]";
+        String myObject = "{ \"foo\" : \"bar\" }";
+        String myNumber = "99";
+
+        String customArray = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer", myArray).down(2).inline().print();
+        String customObject = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer", myObject).down(2).inline().print();
+        String customNumber = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer", myNumber).down(2).inline().print();
+        String noReplacement = JsonTemplatingFunctions.from(node).addAll().insertCustom("nonexisting/path", myNumber).down(2).inline().print();
+
+        String replacedAtProperty = JsonTemplatingFunctions.from(node).addAll().insertCustom("article/customContainer/aa", myObject).down(2).inline().print();
+
+        assertTrue(customArray.contains("\"customContainer\":[\"one\",\"two\",\"three\"]"));
+        assertTrue(customObject.contains("\"customContainer\":{\"foo\":\"bar\"}"));
+        assertTrue(customNumber.contains("\"customContainer\":99"));
+        assertTrue(noReplacement.contains("\"aa\":\"bb\""));
+
+        assertThat(replacedAtProperty, containsString("\"aa\":{\"foo\":\"bar\"}"));
+    }
+
     /**
      * Lists specified properties only for expanded nodes but not for the parent nodes.
      */
@@ -798,7 +824,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
 
         // WHEN
         String json = JsonTemplatingFunctions.from(node).expand("foo.", "category", "fooId").maskChar('.', 'x').add("name", "@name").down(1).print();
-        System.out.println(json);
+
         // THEN
         assertThat(json, startsWith("{"));
         assertThat(json, not(containsString("\"jcr:created\" : ")));
@@ -836,7 +862,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
 
         // WHEN
         String json = JsonTemplatingFunctions.from(node).expand("foox", "category", "fooId").add("name", "@name").down(1).print();
-        System.out.println(json);
+
         // THEN
         assertThat(json, startsWith("{"));
         assertThat(json, not(containsString("\"jcr:created\" : ")));

@@ -65,7 +65,13 @@ This also works with regex for key and value:
 
 ```.childrenAsArray("(@name|title)", ".*list")```
 
-you can also tell function to include links for renditions of binaries by calling:
+Life can be hard and you might need to insert custom JSON somewhere.
+
+```.insertCustom("myPage/main/luckyNumbers", "[ 13, 42, 1337 ]")```
+
+Note that the path (first argument) is treated as a suffix, i.e. `foo/bar` matches `/path/to/foo/bar`.
+
+You can also tell function to include links for renditions of binaries by calling:
 
 ```.binaryLinkRendition("rendition1", "rendition2", ...) ```
 

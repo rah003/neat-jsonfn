@@ -700,7 +700,7 @@ public class JsonBuilderTest extends RepositoryTestCase {
     }
 
     @Test
-    public void testChildrenAsArray() throws Exception {
+    public void testChildrenAsArrayNoMatch() throws Exception {
         Node node = session.getNode("/home/section2/article");
         Node multiParent = node.addNode("multiParent", "mgnl:content");
         multiParent.setProperty("foo", "bar");
@@ -712,8 +712,6 @@ public class JsonBuilderTest extends RepositoryTestCase {
         String noArray = JsonTemplatingFunctions.from(node).add("name").down(2).print();
         String noArrayByRegex = JsonTemplatingFunctions.from(node).add("name").childrenAsArray(".*test.*", ".*whatever.*").down(2).print();
         String withArray = JsonTemplatingFunctions.from(node).add("name").childrenAsArray("foo", "bar").down(3).print();
-        String withArrayByValueRegex = JsonTemplatingFunctions.from(node).add("name").childrenAsArray("@name", "multi.*").down(2).print();
-        String withArrayByNameRegex = JsonTemplatingFunctions.from(node).add("name").childrenAsArray(".*oo.*", "bar").down(2).print();
 
         assertFalse(noArray.contains("["));
         assertFalse(noArray.contains("]"));
@@ -721,6 +719,31 @@ public class JsonBuilderTest extends RepositoryTestCase {
         assertFalse(noArrayByRegex.contains("]"));
         assertTrue(withArray.contains("["));
         assertTrue(withArray.contains("]"));
+
+        assertEquals("{\n"
+                + "  \"mgnl:apex\" : {\n"
+                + "    \"alias\" : {\n"
+                + "      \"name\" : \"c\"\n"
+                + "    }\n"
+                + "  },\n"
+                + "  \"multiParent\" : [ { }, { }, { } ]\n"
+                + "}", withArray);
+    }
+
+    @Test
+    public void testChildrenAsArrayMatch() throws Exception {
+        Node node = session.getNode("/home/section2/article");
+        Node multiParent = node.addNode("multiParent", "mgnl:content");
+        multiParent.setProperty("foo", "bar");
+        multiParent.addNode("testA", "mgnl:content");
+        multiParent.addNode("testB", "mgnl:content");
+        multiParent.addNode("testC", "mgnl:content");
+        session.save();
+
+        // check that the nodes matching the property (name) and value are included when present.
+        String withArrayByValueRegex = JsonTemplatingFunctions.from(node).add("name").childrenAsArray("@name", "test.*").down(2).print();
+        String withArrayByNameRegex = JsonTemplatingFunctions.from(node).add("name").childrenAsArray(".*oo.*", "bar").down(2).print();
+
         assertTrue(withArrayByValueRegex.contains("["));
         assertTrue(withArrayByValueRegex.contains("]"));
         assertTrue(withArrayByNameRegex.contains("["));
@@ -732,8 +755,12 @@ public class JsonBuilderTest extends RepositoryTestCase {
                 + "      \"name\" : \"c\"\n"
                 + "    }\n"
                 + "  },\n"
-                + "  \"multiParent\" : [ { }, { }, { } ]\n"
-                + "}", withArray);
+                + "  \"multiParent\" : {\n"
+                + "    \"testB\" : [ ],\n"
+                + "    \"testC\" : [ ],\n"
+                + "    \"testA\" : [ ]\n"
+                + "  }\n"
+                + "}", withArrayByValueRegex);
     }
 
     /**
@@ -798,7 +825,6 @@ public class JsonBuilderTest extends RepositoryTestCase {
 
         // WHEN
         String json = JsonTemplatingFunctions.from(node).expand("foo.", "category", "fooId").maskChar('.', 'x').add("name", "@name").down(1).print();
-        System.out.println(json);
         // THEN
         assertThat(json, startsWith("{"));
         assertThat(json, not(containsString("\"jcr:created\" : ")));
@@ -836,7 +862,6 @@ public class JsonBuilderTest extends RepositoryTestCase {
 
         // WHEN
         String json = JsonTemplatingFunctions.from(node).expand("foox", "category", "fooId").add("name", "@name").down(1).print();
-        System.out.println(json);
         // THEN
         assertThat(json, startsWith("{"));
         assertThat(json, not(containsString("\"jcr:created\" : ")));

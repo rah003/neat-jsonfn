@@ -29,9 +29,11 @@ or maybe you want to work with all child nodes of given workspace (used by your 
 
 or to add output into existing json (eg. array. Tip: to start w/ empty array, just pass in "[]"):
 
-```.appendFrom(existingJsonString, node) ```
+```jsonfn.appendFrom(existingJsonString, node) ```
 
-you can include all properties by calling (nothing is included by default)
+
+
+after that you can include all properties by calling (nothing is included by default)
 
 ```.addAll() ```
 

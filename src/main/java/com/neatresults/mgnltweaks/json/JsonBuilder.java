@@ -80,10 +80,13 @@ import com.neatresults.PredicateSplitterConsumer;
 
 
 /**
- * Builder class for converting JCR nodes into json ... with few little extras :D .
+ * Builder for converting JCR nodes into json ... with few little extras :D .
  */
 public class JsonBuilder implements Cloneable {
 
+    /**
+     * Simple bean holding info about expanded-to-be property mapping.
+     */
     public class MultiExpand {
 
         private final String repository;

@@ -699,6 +699,28 @@ public class JsonBuilderTest extends RepositoryTestCase {
         assertThat(json, endsWith("}"));
     }
 
+    /**
+     * Lists and renames properties and nodes.
+     */
+    @Test
+    public void testExpandedNodePropertyListingWithRenames() throws Exception {
+        Node node = session.getNode("/home/section2/article/mgnl:apex");
+        node.setProperty("baz", catNode.getIdentifier());
+        node.addNode("blah", "mgnl:content");
+        node.save();
+        // WHEN
+        String json = JsonTemplatingFunctions.from(node).expand("baz", "category").renameKey("baz", "booz").renameKey("@name", "ren@name").renameKey("..me", "wasName").add("name").add("baz['@name']").down(2).print();
+        // THEN
+        assertThat(json, startsWith("{"));
+        assertThat(json, not(containsString("\"jcr:created\" : ")));
+        assertThat(json, not(containsString("\"ren@name\" : \"mgnl:apex\"")));
+        assertThat(json, not(containsString("\"ren@name\" : \"blah\"")));
+        assertThat(json, containsString("\"booz\" : {"));
+        assertThat(json, containsString("\"ren@name\" : \"foo\""));
+        assertThat(json, containsString("\"wasName\" : \"myCategory\""));
+        assertThat(json, endsWith("}"));
+    }
+
     @Test
     public void testChildrenAsArrayNoMatch() throws Exception {
         Node node = session.getNode("/home/section2/article");

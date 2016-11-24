@@ -137,6 +137,7 @@ public class JsonBuilder implements Cloneable {
     private Map<String, MultiExpand> expandsMulti = new LinkedHashMap<>();
 
     private final Map<String, JsonNode> customInserts = new HashMap<>();
+    private Map<Pattern, String> renames = new LinkedHashMap<>();
 
     protected JsonBuilder() {
     }
@@ -221,6 +222,11 @@ public class JsonBuilder implements Cloneable {
 
     public JsonBuilder maskChar(char what, char replace) {
         this.masks.put(what, replace);
+        return this;
+    }
+
+    public JsonBuilder renameKey(String whatRegex, String replace) {
+        this.renames.put(Pattern.compile(whatRegex), replace);
         return this;
     }
 
@@ -434,6 +440,7 @@ public class JsonBuilder implements Cloneable {
             clone.expands = new HashMap<>(clone.expands);
             clone.expandsMulti = new LinkedHashMap<>(clone.expandsMulti);
             clone.masks = new LinkedHashMap<>(clone.masks);
+            clone.renames = new LinkedHashMap<>(clone.renames);
             clone.subNodeSpecificProperties = new LinkedHashMap<>(clone.subNodeSpecificProperties);
             clone.referencingPropertyName = null;
             return clone;
@@ -601,11 +608,11 @@ public class JsonBuilder implements Cloneable {
                     // do not try to include binary data since we don't try to encode them either and jackson just blows w/o that
                     stream.filter(name -> getJCRPropertyType(getPropertyValueObject(node, name)) != PropertyType.BINARY)
                     .forEach(new PredicateSplitterConsumer<String>(config::isExpandable,
-                            expandableProperty -> props.put(maskChars(expandableProperty), expand(expandableProperty, node)),
-                            flatProperty -> props.put(maskChars(flatProperty), getPropertyValueObject(node, flatProperty))));
+                                    expandableProperty -> props.put(renameAndMask(expandableProperty), expand(expandableProperty, node)),
+                                    flatProperty -> props.put(renameAndMask(flatProperty), getPropertyValueObject(node, flatProperty))));
 
                     asPropertyStream(node.getProperties()).filter(p -> hasCustomReplacement(p))
-                    .forEach(p -> props.put(maskChars(getName(p)), getCustomReplacement(p)));
+                            .forEach(p -> props.put(renameAndMask(getName(p)), getCustomReplacement(p)));
 
                     // merge multiexpands with use of temp copy to avoid CCME
                     HashMap<String, Object> propsClone = new HashMap<>(props);
@@ -616,13 +623,13 @@ public class JsonBuilder implements Cloneable {
                             .collect(Collectors.toList())))
                     .map(entry -> new AbstractMap.SimpleEntry<>(entry.getKey(), flatten(entry.getValue())))
                     .filter(entry -> entry.getValue().size() > 0)
-                    .forEach(entry -> props.put(maskChars(entry.getKey()), entry.getValue()));
+                            .forEach(entry -> props.put(renameAndMask(entry.getKey()), entry.getValue()));
 
                     Stream<Entry<String, Method>> specialStream;
                     specialStream = specialProperties.entrySet().stream()
                             .filter(entry -> matchesRegex(entry.getKey(), includes))
                             .filter(entry -> !matchesRegex(entry.getKey(), config.regexExcludes));
-                    specialStream.forEach(entry -> props.put(maskChars(entry.getKey()), invoke(entry.getValue(), node)));
+                    specialStream.forEach(entry -> props.put(renameAndMask(entry.getKey()), invoke(entry.getValue(), node)));
                     if (node.getPrimaryNodeType().getName().equals("mgnl:asset")) {
                         config.renditions.stream().forEach(rendition -> props.put("@rendition_" + rendition, generateRenditionLink(rendition, node)));
                     }
@@ -633,7 +640,7 @@ public class JsonBuilder implements Cloneable {
                     asNodeStream(node.getNodes())
                     .filter(config::isSearchInNodeType)
                     .forEach(new PredicateSplitterConsumer<Node>(config::isOfAllowedDepthAndType,
-                            allowedNode -> props.put(maskChars(getName(allowedNode)), getOutputSubtree(allowedNode)),
+                                    allowedNode -> props.put(renameAndMask(getName(allowedNode)), getOutputSubtree(allowedNode)),
                             allowedParent -> props.putAll(this.getAllowedChildNodesPropertyMapsOf(allowedParent))));
                 }
 
@@ -689,7 +696,12 @@ public class JsonBuilder implements Cloneable {
             return new EntryableContentMap(config.cloneWith(node));
         }
 
-        private String maskChars(String name) {
+        private String renameAndMask(String name) {
+            for (Entry<Pattern, String> e : config.renames.entrySet()) {
+                if (e.getKey().matcher(name).matches()) {
+                    name = e.getValue();
+                }
+            }
             for (Entry<Character, Character> e : config.masks.entrySet()) {
                 name = name.replace(e.getKey(), e.getValue());
             }
@@ -702,7 +714,7 @@ public class JsonBuilder implements Cloneable {
                 asNodeStream(parent.getNodes())
                 .filter(config::isSearchInNodeType)
                 .forEach(new PredicateSplitterConsumer<Node>(config::isOfAllowedDepthAndType,
-                        allowedNode -> props.put(maskChars(getName(allowedNode)), new EntryableContentMap(config.cloneWith(allowedNode))),
+                                allowedNode -> props.put(renameAndMask(getName(allowedNode)), new EntryableContentMap(config.cloneWith(allowedNode))),
                         allowedParent -> props.putAll(this.getAllowedChildNodesPropertyMapsOf(allowedParent))));
                 return props;
             } catch (RepositoryException e) {

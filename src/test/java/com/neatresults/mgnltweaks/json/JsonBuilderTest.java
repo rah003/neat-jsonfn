@@ -667,13 +667,42 @@ public class JsonBuilderTest extends RepositoryTestCase {
     public void testSubNodePropertyListing() throws Exception {
         Session session = MgnlContext.getInstance().getJCRSession("website");
         // WHEN
-        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article")).down(1).add("mgnl:.*").add("mgnl:apex['@name']").maskChar(':', '_').print();
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article"))
+                .down(1).add("mgnl:.*").add("mgnl:apex['@name']").maskChar(':', '_').print();
         // THEN
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"mgnl_created\" : "));
         assertThat(json, not(containsString("\"@name\" : \"article\"")));
         assertThat(json, containsString("\"@name\" : \"mgnl:apex\""));
         assertThat(json, not(containsString("\"mgnl:created\" : ")));
+        assertThat(json, endsWith("}"));
+    }
+
+    /**
+     * Lists specified properties only for sub nodes but not for the parent nodes. Issue #21.
+     *
+     */
+    @Test
+    public void testSubNodePropertyListingWithExclusionOfParent() throws Exception {
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        // GIVEN
+
+        Node node = session.getNode("/home/section2/article/mgnl:apex/alias");
+        node.addNode("tab0","mgnl:content");
+        node.addNode("tab1","mgnl:content");
+        node.addNode("tab2","mgnl:content");
+        session.save();
+        System.out.println("ALL:" + JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex/alias")).down(3).add("@id", "@path").print());
+        // WHEN
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex/alias"))
+                .down(1).add( "tab(.+)['@id']").inline().print();
+        // THEN
+        System.out.println("FILTERED:" + json);
+        // THEN
+        assertThat(json, startsWith("{"));
+        assertThat(json, containsString("\"tab1\":{\"@id\""));
+        assertThat(json, not(containsString("},\"@id\":")));
+        assertThat(json, containsString("},\"tab2\":{\"@id\":"));
         assertThat(json, endsWith("}"));
     }
 

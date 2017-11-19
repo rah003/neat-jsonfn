@@ -249,6 +249,7 @@ public class JsonBuilder implements Cloneable {
      * Includes only specified properties. Use together with excludeAll().
      */
     public JsonBuilder add(String... string) {
+        System.out.println("ADDLIST:" + Arrays.asList(string));
         Arrays.asList(string).stream()
         .filter(it -> it.contains("['") && it.contains("']"))
         .map(it -> it.split("\\['"))
@@ -261,6 +262,7 @@ public class JsonBuilder implements Cloneable {
     }
 
     private void addToSubPropertyMap(String parentNodeName, String propertyName) {
+        System.out.println("ADD:" + parentNodeName + "::" + propertyName);
         if (!subNodeSpecificProperties.containsKey(parentNodeName)) {
             subNodeSpecificProperties.put(parentNodeName, new ArrayList<String>());
         }
@@ -597,8 +599,16 @@ public class JsonBuilder implements Cloneable {
                     if (config.subNodeSpecificProperties.containsKey(node.getName())) {
                         includes.addAll(config.subNodeSpecificProperties.get(node.getName()));
                     }
+                    Collection<String> matchedRegex = getAllMatchedRegex(node.getName(), config.subNodeSpecificProperties.keySet());
+                    if (!matchedRegex.isEmpty()) {
+                        matchedRegex.stream().forEach(match -> includes.addAll(config.subNodeSpecificProperties.get(match)));
+                    }
                     if (config.subNodeSpecificProperties.containsKey(config.referencingPropertyName)) {
                         includes.addAll(config.subNodeSpecificProperties.get(config.referencingPropertyName));
+                    }
+                    matchedRegex = getAllMatchedRegex(config.referencingPropertyName, config.subNodeSpecificProperties.keySet());
+                    if (!matchedRegex.isEmpty()) {
+                        matchedRegex.stream().forEach(match -> includes.addAll(config.subNodeSpecificProperties.get(match)));
                     }
                     stream = asPropertyStream(properties)
                             .map(prop -> getName(prop))
@@ -855,6 +865,16 @@ public class JsonBuilder implements Cloneable {
 
         private boolean matchesRegex(String test, Collection<String> regexList) {
             return !regexList.stream().noneMatch(regex -> test.matches(regex));
+        }
+
+        private Collection<String> getAllMatchedRegex(String test, Collection<String> regexList) {
+            if (test == null) {
+                return Collections.EMPTY_LIST;
+            }
+            System.out.println("test:" + test + ":: rex ::" + regexList.size() + "::" + (regexList.isEmpty() ? "" : regexList.iterator().next()));
+            List<String> matches = regexList.stream().filter(regex -> test.matches(regex)).collect(Collectors.toList());
+            System.out.println("hits found:" + matches);
+            return matches;
         }
     }
 

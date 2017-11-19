@@ -692,12 +692,9 @@ public class JsonBuilderTest extends RepositoryTestCase {
         node.addNode("tab1","mgnl:content");
         node.addNode("tab2","mgnl:content");
         session.save();
-        System.out.println("ALL:" + JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex/alias")).down(3).add("@id", "@path").print());
         // WHEN
         String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex/alias"))
                 .down(1).add( "tab(.+)['@id']").inline().print();
-        // THEN
-        System.out.println("FILTERED:" + json);
         // THEN
         assertThat(json, startsWith("{"));
         assertThat(json, containsString("\"tab1\":{\"@id\""));

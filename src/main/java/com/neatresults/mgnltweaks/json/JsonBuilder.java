@@ -249,7 +249,6 @@ public class JsonBuilder implements Cloneable {
      * Includes only specified properties. Use together with excludeAll().
      */
     public JsonBuilder add(String... string) {
-        System.out.println("ADDLIST:" + Arrays.asList(string));
         Arrays.asList(string).stream()
         .filter(it -> it.contains("['") && it.contains("']"))
         .map(it -> it.split("\\['"))
@@ -262,7 +261,6 @@ public class JsonBuilder implements Cloneable {
     }
 
     private void addToSubPropertyMap(String parentNodeName, String propertyName) {
-        System.out.println("ADD:" + parentNodeName + "::" + propertyName);
         if (!subNodeSpecificProperties.containsKey(parentNodeName)) {
             subNodeSpecificProperties.put(parentNodeName, new ArrayList<String>());
         }
@@ -871,9 +869,7 @@ public class JsonBuilder implements Cloneable {
             if (test == null) {
                 return Collections.EMPTY_LIST;
             }
-            System.out.println("test:" + test + ":: rex ::" + regexList.size() + "::" + (regexList.isEmpty() ? "" : regexList.iterator().next()));
             List<String> matches = regexList.stream().filter(regex -> test.matches(regex)).collect(Collectors.toList());
-            System.out.println("hits found:" + matches);
             return matches;
         }
     }

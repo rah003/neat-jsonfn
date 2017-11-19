@@ -704,6 +704,53 @@ public class JsonBuilderTest extends RepositoryTestCase {
     }
 
     /**
+     * Lists specified properties only for parent nodes but not for the subnodes. Issue #16.
+     *
+     */
+    @Test
+    public void testSubNodeWithSamePropertyAsOneOfAncestors() throws Exception {
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        // GIVEN
+
+        Node node = session.getNode("/home/section2/article/mgnl:apex/alias");
+        node.setProperty("abstract", "foo");
+        Node child = node.addNode("linkInternal","mgnl:content");
+        child.setProperty("abstract", "foo");
+        session.save();
+        // WHEN
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex/alias"))
+                .down(3).add("alias['abstract']").exclude("linkInternal['abstract']").inline().print();
+        // THEN
+        assertThat(json, startsWith("{"));
+        assertThat(json, containsString("{\"abstract\":\"foo\"}"));
+        assertThat(json, endsWith("}"));
+    }
+
+    /**
+     * Lists specified properties only for parent nodes but not for the subnodes. Issue #16.
+     *
+     */
+    @Test
+    public void testSubNodeWithSystemPropertyNameAsOneOfAncestors() throws Exception {
+        Session session = MgnlContext.getInstance().getJCRSession("website");
+        // GIVEN
+
+        Node node = session.getNode("/home/section2/article/mgnl:apex/alias");
+        node.setProperty("abstract", "foo");
+        Node child = node.addNode("linkInternal","mgnl:content");
+        child.setProperty("abstract", "foo");
+        session.save();
+        // WHEN
+        String json = JsonTemplatingFunctions.from(session.getNode("/home/section2/article/mgnl:apex/alias"))
+                .down(3).add("alias['@id']").exclude("linkInternal['@id']").inline().print();
+        // THEN
+        assertThat(json, startsWith("{"));
+        assertThat(json, containsString("{\"@id\":\""));
+        assertEquals(json.split("id").length, 2);
+        assertThat(json, endsWith("}"));
+    }
+
+    /**
      * Lists specified properties only for expanded nodes but not for the parent nodes.
      */
     @Test

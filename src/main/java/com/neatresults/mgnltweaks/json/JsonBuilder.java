@@ -611,7 +611,7 @@ public class JsonBuilder implements Cloneable {
                     stream = asPropertyStream(properties)
                             .map(prop -> getName(prop))
                             .filter(name -> matchesRegex(name, includes))
-                            .filter(name -> !matchesRegex(name, config.regexExcludes));
+                            .filter(name -> (!matchesRegex(name, config.regexExcludes) && !matchesRegex(getName(node)+ "'" + name + "'", config.regexExcludes)));
 
                     // do not try to include binary data since we don't try to encode them either and jackson just blows w/o that
                     stream.filter(name -> getJCRPropertyType(getPropertyValueObject(node, name)) != PropertyType.BINARY)
@@ -636,7 +636,7 @@ public class JsonBuilder implements Cloneable {
                     Stream<Entry<String, Method>> specialStream;
                     specialStream = specialProperties.entrySet().stream()
                             .filter(entry -> matchesRegex(entry.getKey(), includes))
-                            .filter(entry -> !matchesRegex(entry.getKey(), config.regexExcludes));
+                            .filter(entry -> (!matchesRegex(entry.getKey(), config.regexExcludes) && !matchesRegex(getName(node)+ "'" + entry.getKey() + "'", config.regexExcludes)));
                     specialStream.forEach(entry -> props.put(renameAndMask(entry.getKey()), invoke(entry.getValue(), node)));
                     if (node.getPrimaryNodeType().getName().equals("mgnl:asset")) {
                         config.renditions.stream().forEach(rendition -> props.put("@rendition_" + rendition, generateRenditionLink(rendition, node)));

@@ -45,6 +45,10 @@ or just use regex:
 
 ```.add(“my.*”, ...) ```
 
+or if you need to include something based on the parent name use regex:
+
+```.add(“myParent.*['myChild']”, ...) ```
+
 if you have included all, you exclude some properties by:
 
 ```.exclude(“myProp1”, “myProp2”, ...) ```
@@ -52,6 +56,10 @@ if you have included all, you exclude some properties by:
 you can also use regex when excluding props:
 
 ```.exclude(“my.*”, “some.*more”, ...) ```
+
+and you can also use regex when excluding props based on the parent name:
+
+```.exclude(“myParent.*['myChild']”, ...) ```
 
 and most importantly you can also expand any property you want, by providing name of the expanded property and workspace name in which to look for the target:
 
@@ -122,7 +130,7 @@ Versions
 -----------------
 Version 1.0.x should be compatible with all Magnolia 5.x versions, but was tested only on 5.4.3 and not before. If you run into any issues w/ older versions, please report them back.
 
-Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-jsonfn/1.0.5/neat-jsonfn-1.0.5.jar
+Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-jsonfn/1.0.8/neat-jsonfn-1.0.8.jar
 
 Installation & updates 
 -----------------
@@ -139,6 +147,16 @@ Here is a zip file with all libraries you need to use :) - https://drive.google.
 
 Changes
 -----------------
+1.0.9 (snapshot)
+- #16 added support for excluding properties based on the parent name
+1.0.8
+- #21 added support for adding properties based on the parent name
+- #17 support for renaming properties in generated json
+1.0.7
+- skipped for no reason in particular (there's version of this library addopted and released by Magnolia that was released as 1.0.7)
+1.0.6
+- added support for expanding properties
+- #15 added support for custom inserts (by CedricReichenbach)
 1.0.5
 - #12 added new function to retrieve child nodes optionaly in array ```childrenAsArray()``` 
 - #9 fixed issued with double escaping slashes depending on whether outputing JSON inside of JS string or not

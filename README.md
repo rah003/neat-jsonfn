@@ -108,6 +108,10 @@ and last but not least, when you built your chain of operations, you execute on 
 
 ```.print() ```
 
+What about deleted nodes? Normally you can filter those out easily yourself just by not passing them in the function. However sometimes, deleted node might be brought in as part of expansion of the property (when target of said property was deleted). When this happens, you are out of luck. Or rather you were out of luck. As of version 1.0.9, all deleted properties are filtered out by default. If for whatever reason you want to include deleted properties again, you can simply call ```allowDeleted()``` as part of your expression.
+
+```.allowDeleted() ```
+
 
 License
 -------
@@ -130,7 +134,7 @@ Versions
 -----------------
 Version 1.0.x should be compatible with all Magnolia 5.x versions, but was tested only on 5.4.3 and not before. If you run into any issues w/ older versions, please report them back.
 
-Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-jsonfn/1.0.8/neat-jsonfn-1.0.8.jar
+Latest version can be found at https://nexus.magnolia-cms.com/service/local/repositories/magnolia.forge.releases/content/com/neatresults/mgnltweaks/neat-jsonfn/1.0.9/neat-jsonfn-1.0.9.jar
 
 Installation & updates 
 -----------------
@@ -143,11 +147,10 @@ Module has also dependency on neat-tweaks-common jar version 2.0.3 or higher.
 On Magnolia 5.3.x together with neat-tweaks
 - use ```neat-tweaks-developers``` & ```neat-tweaks-editors``` jars of version 1.0.x and ```neat-tweaks-common``` jar of version 2.0.x to make it play nicely with this module. If you use maven, all deps should be resolved correctly automatically. (Tested on 5.3.12)
 
-Here is a zip file with all libraries you need to use :) - https://drive.google.com/open?id=0B23s2-CZM0HzckxROHJVdmt3eE0
-
 Changes
 -----------------
-1.0.9 (snapshot)
+1.0.9
+- added ```allowDeleted()``` and filter out deleted nodes targeted by expended properties by default.
 - #16 added support for excluding properties based on the parent name
 1.0.8
 - #21 added support for adding properties based on the parent name

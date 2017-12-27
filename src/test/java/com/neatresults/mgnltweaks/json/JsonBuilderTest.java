@@ -1045,4 +1045,27 @@ public class JsonBuilderTest extends RepositoryTestCase {
         }
 
     }
+
+    /**
+     * jsonfn.from(content).expand("baz", "category").print() when baz is deleted
+     *
+     * ==> { "foo" : "hahaha", "baz" : {"identifier" : "1234-123456-1234", "name" : "cat1"}, b: 1234, "bar" : "meh", ... }
+     */
+    @Test
+    public void testExpandDeleted() throws Exception {
+        Node node = session.getNode("/home/section2/article/mgnl:apex");
+        catNode.addMixin("mgnl:deleted");
+        catNode.save();
+        node.setProperty("baz", catNode.getIdentifier());
+        node.save();
+        // WHEN
+        String json = JsonTemplatingFunctions.from(node).expand("baz", "category").add("@id").print();
+        // THEN
+        assertThat(json, startsWith("{"));
+        assertThat(json, containsString("\"baz\" : null"));
+        assertThat(json, not(containsString("" + catNode.getIdentifier())));
+        assertThat(json, endsWith("}"));
+    }
+
+
 }

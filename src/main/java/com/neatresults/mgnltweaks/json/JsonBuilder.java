@@ -36,6 +36,8 @@ import static info.magnolia.jcr.util.PropertyUtil.getValuesStringList;
 import info.magnolia.cms.util.QueryUtil;
 import info.magnolia.context.MgnlContext;
 import info.magnolia.jcr.util.ContentMap;
+import info.magnolia.jcr.util.NodeTypes;
+import info.magnolia.jcr.util.NodeUtil;
 import info.magnolia.jcr.wrapper.I18nNodeWrapper;
 import info.magnolia.link.LinkUtil;
 import info.magnolia.objectfactory.Components;
@@ -128,6 +130,8 @@ public class JsonBuilder implements Cloneable {
     private String readNodeTypes = "^(?!rep:).*$";
 
     private String allowOnlyNodeTypes = ".*";
+
+    private boolean allowDeleted = false;
 
     private Map<Character, Character> masks = new LinkedHashMap<>();
     private Map<String, List<String>> subNodeSpecificProperties = new LinkedHashMap<>();
@@ -242,6 +246,11 @@ public class JsonBuilder implements Cloneable {
 
     public JsonBuilder allowOnlyNodeTypes(String nodeTypesRegex) {
         allowOnlyNodeTypes = nodeTypesRegex;
+        return this;
+    }
+
+    public JsonBuilder allowDeleted() {
+        allowDeleted = true;
         return this;
     }
 
@@ -826,11 +835,17 @@ public class JsonBuilder implements Cloneable {
                     } else {
                         expandedNode = session.getNodeByIdentifier(expandable);
                     }
-                    return mapToECMap(expandedNode, expandableProperty, config);
+                    if (config.allowDeleted || isNotDeleted(expandedNode)) {
+                        return mapToECMap(expandedNode, expandableProperty, config);
+                    } else {
+                        return null;
+                    }
                 } else {
                     String statement = "select * from [nt:base] where contains(" + escapeForQuery(targetName) + ",'" + escapeForQuery(expandable) + "')";
                     NodeIterator results = QueryUtil.search(workspace, statement);
+
                     return asNodeStream(results)
+                            .filter(node -> config.allowDeleted || isNotDeleted(node))
                             .map(expanded -> mapToECMap(expanded, expandableProperty, config))
                             .collect(Collectors.toList());
                 }
@@ -838,6 +853,16 @@ public class JsonBuilder implements Cloneable {
                 log.debug(e.getMessage(), e);
                 return null;
             }
+        }
+
+        private boolean isNotDeleted(Node node) {
+            try {
+                boolean isDeleted = NodeUtil.hasMixin(node, NodeTypes.Deleted.NAME);
+                return !isDeleted;
+            } catch (RepositoryException e) {
+                log.debug("Failed to check for deleted nodes. with {}", e.getMessage(), e );
+            }
+            return false;
         }
 
         private String escapeForQuery(String string) {

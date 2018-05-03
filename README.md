@@ -152,14 +152,18 @@ Changes
 1.0.9
 - added ```allowDeleted()``` and filter out deleted nodes targeted by expended properties by default.
 - #16 added support for excluding properties based on the parent name
+
 1.0.8
 - #21 added support for adding properties based on the parent name
 - #17 support for renaming properties in generated json
+
 1.0.7
 - skipped for no reason in particular (there's version of this library addopted and released by Magnolia that was released as 1.0.7)
+
 1.0.6
 - added support for expanding properties
 - #15 added support for custom inserts (by CedricReichenbach)
+
 1.0.5
 - #12 added new function to retrieve child nodes optionaly in array ```childrenAsArray()``` 
 - #9 fixed issued with double escaping slashes depending on whether outputing JSON inside of JS string or not
